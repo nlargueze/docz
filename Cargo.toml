@@ -1,0 +1,10 @@
+[package]
+name = "docz"
+version = "0.1.0"
+edition = "2021"
+description = "Doc generation CLI"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/docz"
+repository = "https://github.com/nlargueze/docz.git"
+
+[dependencies]
