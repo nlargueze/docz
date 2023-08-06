@@ -1,0 +1,10 @@
+[doc]
+title = "Title"
+description = ""
+authors = []
+files = [
+    "00-intro.md"
+]
+
+[build]
+dir = "build"

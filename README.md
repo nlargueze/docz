@@ -1,2 +1,3 @@
-# docrs
-Doc generation
+# docz
+
+Documentation generator
