@@ -1,10 +1,13 @@
 //! Configuration
 
-use std::{fs, env, path::{PathBuf, Path}};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
+use anyhow::{Error, Result};
 use log::debug;
-use serde::{Serialize, Deserialize};
-use anyhow::{Result, Error};
+use serde::{Deserialize, Serialize};
 
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -13,7 +16,7 @@ pub struct Config {
     pub build: BuildConfig,
 }
 
-/// General doc configuration
+/// Documentation configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocConfig {
     pub title: String,
@@ -24,13 +27,11 @@ pub struct DocConfig {
 
 impl Default for DocConfig {
     fn default() -> Self {
-        Self { 
-            title: "Title".to_string(), 
-            description: String::default(), 
+        Self {
+            title: "Title".to_string(),
+            description: String::default(),
             authors: vec![],
-            files: vec![
-                "00-intro.md".to_string()
-            ]
+            files: vec!["00-intro.md".to_string()],
         }
     }
 }
@@ -54,15 +55,15 @@ impl Config {
     pub const DEFAULT_NAME: &str = "doc.toml";
 
     /// Loads the configuration
-    /// 
-    /// The configuration is loaded from the file system. 
+    ///
+    /// The configuration is loaded from the file system.
     /// The default file name is `doc.toml`, and is located
     /// in the current working directory.
-    /// 
+    ///
     pub fn load() -> Result<Self> {
         let cwd = env::current_dir()?;
         let cfg_file = cwd.join(Self::DEFAULT_NAME);
-        debug!("config file: {}", cfg_file.to_string_lossy()); 
+        debug!("config file: {}", cfg_file.to_string_lossy());
         let data = fs::read(&cfg_file)?;
         let data_str = String::from_utf8(data)?;
         toml::from_str::<Config>(&data_str).map_err(|e| e.into())
@@ -71,10 +72,28 @@ impl Config {
     /// Loads from a specific file
     pub fn load_from(cfg_file: &Path) -> Result<Self> {
         debug!("config file: {}", cfg_file.to_string_lossy());
-        let data = fs::read(&cfg_file)?;
+        let data = fs::read(cfg_file)?;
         let data_str = String::from_utf8(data)?;
         toml::from_str::<Config>(&data_str).map_err(|e| e.into())
-    } 
+    }
+
+    /// Initializes the current working directory
+    pub fn init_dir() -> Result<()> {
+        // create and save the config file
+        let cfg = Config::default();
+        cfg.save()?;
+
+        // create the `src` folder
+        let src_dir = cfg.src_dir();
+        if src_dir.exists() {
+            return Err(anyhow::anyhow!("src directory already exists"));
+        }
+        fs::create_dir(src_dir)?;
+
+        // create the .gitignore
+        fs::write(".gitignore", "build")?;
+        Ok(())
+    }
 
     /// Saves the config to a file
     pub fn save(&self) -> Result<()> {
@@ -89,19 +108,21 @@ impl Config {
     }
 
     /// Returns the root directory
-    pub fn root_dir(&self) -> Result<PathBuf> {
-        Ok(env::current_dir()?)
-    } 
+    pub fn root_dir(&self) -> PathBuf {
+        env::current_dir().expect("invalid current directory")
+    }
 
     /// Returns the src directory
-    pub fn src_dir(&self) -> Result<PathBuf> {
-        let cwd = env::current_dir()?;
-        Ok(cwd.join("src"))
-    } 
+    pub fn src_dir(&self) -> PathBuf {
+        env::current_dir()
+            .expect("invalid current directory")
+            .join("src")
+    }
 
     /// Returns the build directory
-    pub fn build_dir(&self) -> Result<PathBuf> {
-        let cwd = env::current_dir()?;
-        Ok(cwd.join(&self.build.dir))
-    } 
+    pub fn build_dir(&self) -> PathBuf {
+        env::current_dir()
+            .expect("invalid current directory")
+            .join(&self.build.dir)
+    }
 }

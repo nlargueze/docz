@@ -2,9 +2,7 @@
 title = "Title"
 description = ""
 authors = []
-files = [
-    "00-intro.md"
-]
+files = ["00-intro.md"]
 
 [build]
 dir = "build"

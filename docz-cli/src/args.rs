@@ -1,11 +1,8 @@
-//! Commands
+//! Arguments
 
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-
-pub mod init;
-pub mod build;
 
 /// CLI arguments
 #[derive(Parser)]
@@ -34,5 +31,9 @@ pub enum Command {
     /// Initializes the project
     Init {},
     /// Builds the project
-    Build {},
+    Build {
+        /// Output format
+        #[arg(short, long)]
+        out: String,
+    },
 }

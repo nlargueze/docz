@@ -1,0 +1,16 @@
+[package]
+name = "docz"
+version = "0.1.0"
+edition = "2021"
+description = "Doc generation CLI"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/docz"
+repository = "https://github.com/nlargueze/docz.git"
+
+[dependencies]
+docz-lib = { version = "0.1.0", path = "../docz-lib" }
+clap = { version = "4.3.10", features = ["derive"] }
+colored = "2.0.4"
+env_logger = "0.10.0"
+anyhow = "1.0.72"
+log = "0.4.19"
