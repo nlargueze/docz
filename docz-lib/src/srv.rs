@@ -67,7 +67,7 @@ impl Service {
     /// Extracts a document from the source files
     pub fn extract(&self) -> Result<Document> {
         // init document
-        let mut doc = Document::new();
+        let mut doc = Document::default();
 
         // get the files
         let files = self.get_files()?;
