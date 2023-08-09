@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 comrak = { version = "0.18.0", features = ["emojis"] }
 docz-ast = { version = "0.1.0", path = "../docz-ast" }
+serde = "1.0.183"
+serde_yaml = "0.9.25"
 thiserror = "1.0.44"

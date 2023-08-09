@@ -1,105 +1,114 @@
 //! Generic AST for docz
 
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
-/// AST node
-#[derive(Debug, Default, Clone)]
+mod error;
+mod traits;
+
+pub use error::*;
+pub use traits::*;
+
+/// A node
+#[derive(Debug, Clone, Default)]
 pub struct Node {
-    /// Type
+    /// Node type
     pub ty: NodeType,
-    /// Tag
-    pub tag: Option<String>,
-    /// Attributes
-    pub attributes: HashMap<String, String>,
-    /// Content
-    pub content: Option<String>,
-    /// Children
+    /// Node attributes
+    pub attrs: HashMap<String, Option<String>>,
+    /// Node value
+    pub value: Option<String>,
+    /// Node children
     pub children: Vec<Node>,
 }
 
-/// Node kind
-#[derive(Debug, Default, PartialEq, Eq, Hash, Clone)]
+/// AST node
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum NodeType {
+    /// Generic
     #[default]
-    Root,
-    FrontMatter,
-    Text,
-    Comment,
-    Code,
-    CodeBlock {
-        lang: String,
+    Generic,
+    /// Document
+    Document {
+        title: Option<String>,
+        authors: Vec<String>,
     },
+    /// Document fragment
+    Fragment,
+    /// Chapter
+    Chapter {
+        title: Option<String>,
+    },
+    /// Page
+    Page,
+    Section,
+    Heading {
+        level: u8,
+    },
+    Paragraph,
+    Row,
+    PageBreak,
     LineBreak,
     SoftBreak,
-    ThematicBreak,
-    Heading(u8),
+    Divider,
+    List {
+        /// if true, the list is ordered
+        ordered: bool,
+        /// For ordered list, the start index
+        start: Option<usize>,
+    },
+    ListItem,
+    Table,
+    TableRow,
+    FootnoteRef,
+    Footnote,
+    DescrList,
+    DescrItem,
+    DescrTerm,
+    DescrDetails,
+    Link {
+        url: String,
+        title: Option<String>,
+    },
+    Image {
+        url: String,
+        title: Option<String>,
+    },
+    CodeBlock {
+        lang: Option<String>,
+    },
+    BlockQuote,
+    HtmlBlock,
+    Text,
+    Comment,
     Italic,
     Bold,
     StrikeThrough,
-    Paragraph,
-    UnorderedList,
-    OrderedList {
-        start: usize,
-    },
-    ListItem,
-    Image {
-        url: String,
-        title: String,
-    },
-    Link {
-        url: String,
-        title: String,
-    },
-    FootnoteRef(String),
-    Footnote,
+    Code,
 }
 
 impl Node {
-    /// Sets the node type
-    pub fn ty(&mut self, ty: NodeType) {
-        self.ty = ty;
-    }
-
-    /// Sets the node tag
-    pub fn tag(&mut self, tag: &str) {
-        self.tag = Some(tag.to_string());
-    }
-
-    /// Adds a node atttribute
-    pub fn attr(&mut self, key: &str, value: &str) {
-        self.attributes.insert(key.to_string(), value.to_string());
-    }
-
-    /// Sets the node content
-    pub fn content(&mut self, data: &str) {
-        self.content = Some(data.to_string());
-    }
-
-    /// Adds a node child
-    pub fn child(&mut self, child: Node) {
+    /// Adds a child to the node
+    pub fn add_child(&mut self, child: Node) -> &mut Self {
         self.children.push(child);
+        self
     }
 
-    /// Creates a root node
-    pub fn root() -> Self {
-        Self::default()
+    /// Adds an attribute to the node
+    pub fn add_attr(&mut self, key: &str, value: Option<&str>) -> &mut Self {
+        self.attrs
+            .insert(key.to_string(), value.map(|v| v.to_string()));
+        self
     }
-}
 
-/// AST parser
-pub trait Parser {
-    /// Error
-    type Err: Error;
+    /// Sets the node type
+    pub fn set_type(&mut self, ty: NodeType) -> &mut Self {
+        self.ty = ty;
+        self
+    }
 
-    /// Extracts the AST
-    fn parse(&self, data: &str) -> Result<Node, Self::Err>;
-}
-
-/// AST renderer
-pub trait Renderer {
-    /// Error
-    type Err: Error;
-
-    /// Renders an AST
-    fn render(&self, node: &Node) -> Result<String, Self::Err>;
+    /// Sets the node value
+    pub fn set_value(&mut self, value: &str) -> &mut Self {
+        self.value = Some(value.to_string());
+        self
+    }
 }

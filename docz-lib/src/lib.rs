@@ -1,8 +1,9 @@
 //! Docz library
 
-pub mod ast;
-pub mod cfg;
-pub mod conv;
-pub mod doc;
-pub mod fmt;
-pub mod srv;
+mod cfg;
+mod fmt;
+mod srv;
+
+pub use cfg::*;
+pub use fmt::*;
+pub use srv::*;

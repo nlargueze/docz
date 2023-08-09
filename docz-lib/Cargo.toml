@@ -8,17 +8,13 @@ documentation = "https://docs.rs/docz-lib"
 repository = "https://github.com/nlargueze/docz.git"
 
 [features]
-default = ["mkd", "html", "epub"]
-mkd = ["pulldown-cmark"]
-html = ["html_parser"]
-epub = ["dep:epub", "epub-builder"]
+default = []
 
 [dependencies]
 anyhow = "1.0.72"
-epub = { version = "2.1.1", optional = true }
-epub-builder = { version = "0.7.1", optional = true }
-html_parser = { version = "0.7.0", optional = true }
 log = "0.4.19"
-pulldown-cmark = { version = "0.9.3", optional = true }
 serde = { version = "1.0.182", features = ["derive"] }
 toml = "0.7.6"
+docz-ast = { version = "0.1.0", path = "../docz-ast" }
+docz-ast-md = { version = "0.1.0", path = "../docz-ast-md" }
+docz-ast-html = { version = "0.1.0", path = "../docz-ast-html" }

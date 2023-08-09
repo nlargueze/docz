@@ -1,4 +1,4 @@
-//! Formats
+//! File formats
 
 use std::{fmt::Display, path::Path, str::FromStr};
 

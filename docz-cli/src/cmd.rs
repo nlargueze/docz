@@ -4,7 +4,7 @@ use std::env;
 
 use anyhow::Result;
 use clap::Parser;
-use docz_lib::{cfg::Config, fmt::Format, srv::Service};
+use docz_lib::{Config, Format, Service};
 use log::debug;
 
 use crate::args::{CliArgs, Command};
@@ -27,7 +27,7 @@ pub fn run() -> Result<()> {
             Config::init_dir()?;
             eprintln!("✅ initialized repo");
         }
-        Command::Build { out } => {
+        Command::Build { out: _ } => {
             let cfg = match &args.cfg {
                 Some(cfg_file) => Config::load_from(cfg_file)?,
                 _ => Config::load()?,
@@ -35,9 +35,7 @@ pub fn run() -> Result<()> {
             debug!("CFG {cfg:#?}");
 
             let service = Service::new(cfg).defaults();
-            let doc = service.extract()?;
-            let format = out.parse::<Format>()?;
-            service.export(format, &doc)?;
+            service.build(Format::Html)?;
         }
     }
 
