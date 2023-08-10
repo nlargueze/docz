@@ -1,6 +1,6 @@
 //! Error
 
-use crate::Node;
+use crate::{Node, Position};
 
 /// AST error
 #[derive(Debug, thiserror::Error)]
@@ -8,9 +8,9 @@ use crate::Node;
 pub struct Error {
     /// Error message
     pub message: String,
-    /// Error source
-    pub src: Option<String>,
-    /// Error code
+    /// Optional position
+    pub position: Option<Position>,
+    /// Optional node
     pub node: Option<Node>,
 }
 
@@ -19,18 +19,18 @@ impl Error {
     pub fn new(msg: &str) -> Self {
         Self {
             message: msg.to_string(),
-            src: None,
+            position: None,
             node: None,
         }
     }
 
-    /// Assigns a source to the error
-    pub fn source(mut self, source: &str) -> Self {
-        self.src = Some(source.to_string());
+    /// Assigns a position to the error
+    pub fn position(mut self, position: Position) -> Self {
+        self.position = Some(position);
         self
     }
 
-    /// Assigns an AST node to the error
+    /// Assigns a node to the error
     pub fn node(mut self, node: Node) -> Self {
         self.node = Some(node);
         self

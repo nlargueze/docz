@@ -1,8 +1,6 @@
 //! Parser
 
-use std::collections::HashMap;
-
-use docz_ast::{AstParser, Error, Node, NodeType};
+use docz_ast::{Attributes, Error, Node, Parser, Position};
 use html_parser::Dom;
 
 /// HTML parser
@@ -16,7 +14,7 @@ impl HTMLParser {
     }
 }
 
-impl AstParser for HTMLParser {
+impl Parser for HTMLParser {
     fn parse(&self, data: &str) -> Result<Node, Error> {
         let dom = Dom::parse(data).map_err(|e| Error::new(e.to_string().as_str()))?;
 
@@ -24,13 +22,17 @@ impl AstParser for HTMLParser {
             return Err(Error::new(err.as_str()));
         }
 
-        let mut node = Node::default();
+        let mut children = vec![];
         for html_child in &dom.children {
             let child_node = self.parse_node_iter(html_child)?;
-            node.add_child(child_node);
+            children.push(child_node);
         }
 
-        Ok(node)
+        Ok(Node::Fragment {
+            position: None,
+            children,
+            attrs: Attributes::new(),
+        })
     }
 }
 
@@ -38,39 +40,50 @@ impl HTMLParser {
     /// Parses a node in a recursive manner
     #[allow(clippy::only_used_in_recursion)]
     fn parse_node_iter(&self, html_node: &html_parser::Node) -> Result<Node, Error> {
-        let mut node = Node::default();
-
-        match html_node {
-            html_parser::Node::Text(text) => {
-                node.set_type(NodeType::Text).set_value(text);
-            }
-            html_parser::Node::Comment(comment) => {
-                node.set_type(NodeType::Comment).set_value(comment);
-            }
+        let node = match html_node {
+            html_parser::Node::Text(text) => Node::Text {
+                position: None,
+                attrs: Attributes::default(),
+                value: text.clone(),
+            },
+            html_parser::Node::Comment(comment) => Node::Comment {
+                position: None,
+                attrs: Attributes::default(),
+                value: comment.clone(),
+            },
             html_parser::Node::Element(element) => {
-                let ty = Self::map_html_tag_to_ast_type(&element.name, &element.attributes);
-                node.set_type(ty);
-
-                if let Some(id) = element.id.as_ref() {
-                    node.add_attr("id", Some(id.as_str()));
+                let mut node = self.parse_html_element(element);
+                if let Some(children) = node.children_mut() {
+                    for child in element.children.iter() {
+                        let child = self.parse_node_iter(child)?;
+                        children.push(child);
+                    }
                 }
-                for (key, value) in element.attributes.iter() {
-                    node.add_attr(key, value.as_deref());
-                }
-                // NB: add classes
-                for child in element.children.iter() {
-                    let child = self.parse_node_iter(child)?;
-                    node.add_child(child);
-                }
+                node
             }
-        }
+        };
 
         Ok(node)
     }
 
     /// Maps HTML tags to AST types
-    fn map_html_tag_to_ast_type(tag: &str, _attrs: &HashMap<String, Option<String>>) -> NodeType {
-        match tag {
+    fn parse_html_element(&self, element: &html_parser::Element) -> Node {
+        // node position
+        let position = Some(Position::new(
+            element.source_span.start_line,
+            element.source_span.start_column,
+            element.source_span.end_line,
+            element.source_span.end_column,
+        ));
+
+        // node attributes
+        let attrs = Attributes::default();
+
+        // node children
+        let children = vec![];
+
+        // node
+        let node = match element.name.as_str() {
             "a" => todo!(),
             "abbr" => todo!(),
             "address" => todo!(),
@@ -78,31 +91,47 @@ impl HTMLParser {
             "article" => todo!(),
             "aside" => todo!(),
             "audio" => todo!(),
-            "b" => NodeType::Bold,
+            "b" => Node::Bold {
+                position,
+                attrs,
+                children,
+            },
             "base" => todo!(),
             "bdi" => todo!(),
             "bdo" => todo!(),
-            "blockquote" => NodeType::BlockQuote,
+            "blockquote" => Node::BlockQuote {
+                position,
+                children,
+                attrs,
+            },
             "body" => todo!(),
-            "br" => NodeType::LineBreak,
+            "br" => Node::LineBreak { position },
             "button" => todo!(),
             "canvas" => todo!(),
             "caption" => todo!(),
-            "cite" => NodeType::BlockQuote,
-            "code" => NodeType::Code,
+            "cite" => Node::BlockQuote {
+                position,
+                children,
+                attrs,
+            },
+            "code" => Node::InlineCode {
+                position,
+                value: "".to_string(),
+                attrs,
+            },
             "col" => todo!(),
             "colgroup" => todo!(),
             "data" => todo!(),
             "datalist" => todo!(),
-            "dd" => NodeType::DescrDetails,
+            "dd" => todo!(), // NodeType::DescrDetails,
             "del" => todo!(),
             "details" => todo!(),
             "dfn" => todo!(),
             "dialog" => todo!(),
             "div" => todo!(),
-            "dl" => NodeType::DescrList,
-            "dt" => NodeType::DescrTerm,
-            "em" => NodeType::Italic,
+            "dl" => todo!(), // NodeType::DescrList,
+            "dt" => todo!(), // NodeType::DescrTerm,
+            "em" => todo!(), // NodeType::Italic,
             "embed" => todo!(),
             "fieldset" => todo!(),
             "figcaption" => todo!(),
@@ -185,6 +214,16 @@ impl HTMLParser {
             "video" => todo!(),
             "wbr" => todo!(),
             _ => todo!(),
-        }
+        };
+
+        // if let Some(id) = element.id.as_ref() {
+        //     node.add_attr("id", Some(id.as_str()));
+        // }
+        // for (key, value) in element.attributes.iter() {
+        //     node.add_attr(key, value.as_deref());
+        // }
+        // NB: add classes
+
+        node
     }
 }

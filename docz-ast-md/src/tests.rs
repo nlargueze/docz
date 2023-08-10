@@ -1,5 +1,7 @@
 //! Unit tests
 
+use docz_ast::{Attributes, Node, Parser, Renderer};
+
 use super::*;
 
 static SAMPLE: &str = include_str!("tests/sample.md");
@@ -14,7 +16,14 @@ fn test_parse() {
 #[test]
 #[ignore]
 fn test_render() {
-    let node = Node::default();
+    let node = Node::Document {
+        position: None,
+        children: vec![],
+        attrs: Attributes::new(),
+        title: None,
+        summary: None,
+        authors: None,
+    };
     let renderer = MdRenderer::new();
     let file_str = renderer.render(&node).unwrap();
     eprintln!("{file_str}");

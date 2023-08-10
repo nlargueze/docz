@@ -4,13 +4,6 @@ use std::{fmt::Display, path::Path, str::FromStr};
 
 use anyhow::{anyhow, Error};
 
-#[cfg(feature = "epub")]
-pub mod epub;
-#[cfg(feature = "html")]
-pub mod html;
-#[cfg(feature = "mkd")]
-pub mod mkd;
-
 // File format
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Copy, Hash)]
 pub enum Format {

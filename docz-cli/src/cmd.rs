@@ -5,7 +5,6 @@ use std::env;
 use anyhow::Result;
 use clap::Parser;
 use docz_lib::{Config, Format, Service};
-use log::debug;
 
 use crate::args::{CliArgs, Command};
 
@@ -32,10 +31,10 @@ pub fn run() -> Result<()> {
                 Some(cfg_file) => Config::load_from(cfg_file)?,
                 _ => Config::load()?,
             };
-            debug!("CFG {cfg:#?}");
 
             let service = Service::new(cfg).defaults();
             service.build(Format::Html)?;
+            eprintln!("✅ built docs");
         }
     }
 

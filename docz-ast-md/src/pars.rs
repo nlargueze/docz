@@ -4,7 +4,7 @@ use comrak::{
     nodes::{AstNode, NodeValue},
     Arena, ComrakOptions,
 };
-use docz_ast::{AstParser, Error, Node, NodeType};
+use docz_ast::{Attributes, Error, Node, Parser, Point, Position};
 use serde::Deserialize;
 
 /// AST parser for markdown
@@ -18,7 +18,7 @@ impl MdParser {
     }
 }
 
-impl AstParser for MdParser {
+impl Parser for MdParser {
     fn parse(&self, data: &str) -> Result<Node, Error> {
         let arena = Arena::new();
         let mut opts = ComrakOptions::default();
@@ -32,169 +32,221 @@ impl AstParser for MdParser {
         let md_root = comrak::parse_document(&arena, data, &opts);
         // eprintln!("{md_root:#?}");
 
-        self.parse_node_iter(md_root, None)
+        self.parse_node_iter(md_root)
     }
 }
 
 impl MdParser {
     /// Parses a node recursively
     #[allow(clippy::only_used_in_recursion)]
-    fn parse_node_iter<'a>(
-        &self,
-        ast_root: &'a AstNode<'a>,
-        parent: Option<&mut Node>,
-    ) -> Result<Node, Error> {
+    fn parse_node_iter<'a>(&self, ast_root: &'a AstNode<'a>) -> Result<Node, Error> {
         // eprintln!("ast_root: {:#?}", ast_root.data);
 
-        let mut node = Node::default();
-        match &ast_root.data.borrow().value {
-            NodeValue::Document => {
-                node.set_type(NodeType::Document {
-                    title: None,
-                    authors: vec![],
-                });
-            }
-            NodeValue::FrontMatter(fmatter) => {
-                // NB: FrontMatter is in YAML format
-                if let Some(parent) = parent {
-                    parent.add_attr("frontmatter", Some(fmatter));
-                } else {
-                    return Err(Error::new("Frontmatter must be a child of a Document"));
-                }
-            }
-            NodeValue::BlockQuote => {
-                node.set_type(NodeType::BlockQuote);
-            }
-            NodeValue::List(list) => match list.list_type {
-                comrak::nodes::ListType::Bullet => {
-                    node.set_type(NodeType::List {
-                        ordered: false,
-                        start: None,
-                    });
-                }
-                comrak::nodes::ListType::Ordered => {
-                    node.set_type(NodeType::List {
-                        ordered: true,
-                        start: Some(list.start),
-                    });
-                }
+        // node position
+        let src_repos = &ast_root.data.borrow().sourcepos;
+        let position = Some(Position {
+            start: Point {
+                line: src_repos.start.line,
+                column: src_repos.start.column,
             },
-            NodeValue::Item(_item) => {
-                node.set_type(NodeType::ListItem);
-            }
-            NodeValue::DescriptionList => {
-                node.set_type(NodeType::DescrList);
-            }
-            NodeValue::DescriptionItem(_item) => {
-                node.set_type(NodeType::DescrItem);
-            }
-            NodeValue::DescriptionTerm => {
-                node.set_type(NodeType::DescrTerm);
-            }
-            NodeValue::DescriptionDetails => {
-                node.set_type(NodeType::DescrDetails);
-            }
-            NodeValue::CodeBlock(block) => {
-                node.set_type(NodeType::CodeBlock {
-                    lang: Some(block.info.clone()),
-                })
-                .set_value(block.literal.as_str());
-            }
-            NodeValue::HtmlBlock(block) => {
-                node.set_type(NodeType::HtmlBlock).set_value(&block.literal);
-            }
-            NodeValue::Paragraph => {
-                node.set_type(NodeType::Paragraph);
-            }
-            NodeValue::Heading(heading) => {
-                node.set_type(NodeType::Heading {
-                    level: heading.level,
-                });
-            }
-            NodeValue::ThematicBreak => {
-                node.set_type(NodeType::Paragraph);
-            }
-            NodeValue::Table(table) => {
-                todo!("Table: {:#?}", table)
-            }
-            NodeValue::TableRow(row) => {
-                todo!("TableRow: {:#?}", row)
-            }
-            NodeValue::TableCell => {
-                todo!("TableCell: {:#?}", "TableCell")
-            }
-            NodeValue::Text(text) => {
-                node.set_type(NodeType::Text).set_value(text);
-            }
-            NodeValue::TaskItem(item) => {
-                todo!("TaskItem: {:#?}", item)
-            }
-            NodeValue::SoftBreak => {
-                node.set_type(NodeType::SoftBreak);
-            }
-            NodeValue::LineBreak => {
-                node.set_type(NodeType::LineBreak);
-            }
-            NodeValue::Code(code) => {
-                node.set_type(NodeType::Code)
-                    .set_value(code.literal.as_str());
-            }
-            NodeValue::HtmlInline(html) => {
-                todo!("HtmlInline: {:#?}", html)
-            }
-            NodeValue::Emph => {
-                node.set_type(NodeType::Italic);
-            }
-            NodeValue::Strong => {
-                node.set_type(NodeType::Bold);
-            }
-            NodeValue::Strikethrough => {
-                node.set_type(NodeType::StrikeThrough);
-            }
-            NodeValue::Superscript => {
-                todo!("Superscript: {:#?}", "Superscript")
-            }
-            NodeValue::Link(link) => {
-                node.set_type(NodeType::Link {
-                    url: link.url.to_string(),
-                    title: Some(link.title.to_string()),
-                });
-            }
-            NodeValue::Image(image) => {
-                node.set_type(NodeType::Image {
-                    url: image.url.to_string(),
-                    title: Some(image.title.to_string()),
-                });
-            }
-            NodeValue::FootnoteReference(footnote_ref) => {
-                node.set_type(NodeType::FootnoteRef).set_value(footnote_ref);
-            }
-            NodeValue::FootnoteDefinition(footnote) => {
-                node.set_type(NodeType::Footnote)
-                    .set_value(footnote.as_str());
-            }
+            end: Point {
+                line: src_repos.end.line,
+                column: src_repos.end.column,
+            },
+        });
+
+        // node attributes
+        let attrs = Attributes::new();
+
+        // node children
+        let children = vec![];
+
+        // parse node
+        let mut node = match &ast_root.data.borrow().value {
+            NodeValue::Document => Node::Document {
+                position,
+                children,
+                attrs,
+                title: None,
+                summary: None,
+                authors: None,
+            },
+            NodeValue::FrontMatter(fmatter) => Node::Metadata {
+                position,
+                attrs,
+                value: fmatter.to_string(),
+            },
+            NodeValue::BlockQuote => Node::BlockQuote {
+                position,
+                children,
+                attrs,
+            },
+            NodeValue::List(list) => match list.list_type {
+                comrak::nodes::ListType::Bullet => Node::List {
+                    position,
+                    attrs,
+                    children,
+                    ordered: false,
+                    start: None,
+                },
+                comrak::nodes::ListType::Ordered => Node::List {
+                    position,
+                    attrs,
+                    children,
+                    ordered: true,
+                    start: Some(list.start),
+                },
+            },
+            NodeValue::Item(_item) => Node::ListItem {
+                position,
+                attrs,
+                children,
+                checked: None,
+            },
+            NodeValue::DescriptionList => Node::DescrList {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::DescriptionItem(_item) => Node::DescrItem {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::DescriptionTerm => Node::DescrItem {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::DescriptionDetails => Node::DescrDetail {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::CodeBlock(block) => Node::CodeBlock {
+                position,
+                value: block.literal.to_string(),
+                attrs,
+                info: block.info.to_string(),
+            },
+            NodeValue::HtmlBlock(block) => Node::Html {
+                position,
+                attrs,
+                value: block.literal.to_string(),
+            },
+            NodeValue::Paragraph => Node::Paragraph {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::Heading(heading) => Node::Heading {
+                position,
+                children,
+                attrs,
+                level: heading.level,
+            },
+            NodeValue::ThematicBreak => Node::ThematicBreak { position, attrs },
+            NodeValue::Table(_table) => Node::Table {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::TableRow(row) => Node::TableRow {
+                position,
+                attrs,
+                children,
+                is_header: *row,
+            },
+            NodeValue::TableCell => Node::TableCell {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::Text(text) => Node::Text {
+                position,
+                attrs,
+                value: text.to_string(),
+            },
+            NodeValue::TaskItem(item) => Node::ListItem {
+                position,
+                attrs,
+                children,
+                checked: Some(item.is_some()),
+            },
+            NodeValue::SoftBreak => Node::SoftBreak { position },
+            NodeValue::LineBreak => Node::LineBreak { position },
+            NodeValue::Code(code) => Node::InlineCode {
+                position,
+                attrs,
+                value: code.literal.to_string(),
+            },
+            NodeValue::HtmlInline(html) => Node::Html {
+                position,
+                value: html.to_string(),
+                attrs,
+            },
+            NodeValue::Emph => Node::Italic {
+                position,
+                children,
+                attrs,
+            },
+            NodeValue::Strong => Node::Bold {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::Strikethrough => Node::StrikeThrough {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::Superscript => Node::Superscript {
+                position,
+                attrs,
+                children,
+            },
+            NodeValue::Link(link) => Node::Link {
+                position,
+                attrs,
+                children,
+                url: link.url.clone(),
+                title: link.title.clone(),
+            },
+            NodeValue::Image(image) => Node::Image {
+                position,
+                attrs,
+                url: image.url.clone(),
+                alt: image.title.clone(),
+                title: None,
+            },
+            NodeValue::FootnoteReference(footnote_ref) => Node::FootnoteRef {
+                position,
+                attrs,
+                id: footnote_ref.to_string(),
+            },
+            NodeValue::FootnoteDefinition(footnote) => Node::FootnoteDef {
+                position,
+                attrs,
+                children,
+                id: footnote.to_string(),
+            },
         };
 
-        for ast_child in ast_root.children() {
-            let child = self.parse_node_iter(ast_child, Some(&mut node))?;
-            node.add_child(child);
+        if let Some(children) = node.children_mut() {
+            for ast_child in ast_root.children() {
+                let child = self.parse_node_iter(ast_child)?;
+                children.push(child);
+            }
         }
 
         Ok(node)
     }
 }
 
-/// Extracts the frontmatter inside the document node
-pub fn extract_frontmatter<'a, T>(node: &'a Node) -> Result<T, Error>
+/// Parses the frontmatter YAML string
+pub fn parse_frontmatter<'a, T>(value: &'a str) -> Result<T, Error>
 where
     T: Deserialize<'a>,
 {
-    let fm = node
-        .attrs
-        .get("frontmatter")
-        .ok_or_else(|| Error::new("No frontmatter found"))?;
-    match fm {
-        Some(fm) => serde_yaml::from_str::<T>(fm).map_err(|e| Error::new(&e.to_string())),
-        None => Err(Error::new("No frontmatter found")),
-    }
+    serde_yaml::from_str::<T>(value).map_err(|e| Error::new(&e.to_string()))
 }

@@ -1,8 +1,6 @@
 //! Tests
 
-use std::collections::HashMap;
-
-use docz_ast::{AstParser, AstRenderer, Node, NodeType};
+use docz_ast::{Attributes, Node, Parser, Renderer};
 
 use super::*;
 
@@ -18,22 +16,19 @@ fn test_parse() {
 
 #[test]
 fn test_render() {
-    let node = Node {
-        ty: NodeType::Document {
-            title: Some("hello".to_string()),
-            authors: vec![],
-        },
-        attrs: HashMap::new(),
-        value: None,
-        children: vec![Node {
-            ty: NodeType::Paragraph,
-            attrs: HashMap::new(),
-            value: None,
-            children: vec![Node {
-                ty: NodeType::Text,
-                attrs: HashMap::new(),
-                value: Some("Hello".to_string()),
-                children: vec![],
+    let node = Node::Document {
+        position: None,
+        attrs: Attributes::default(),
+        title: Some("Title".to_string()),
+        summary: None,
+        authors: None,
+        children: vec![Node::Paragraph {
+            position: None,
+            attrs: Attributes::default(),
+            children: vec![Node::Text {
+                position: None,
+                attrs: Attributes::default(),
+                value: "Hello".to_string(),
             }],
         }],
     };

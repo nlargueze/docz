@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use docz_ast::{AstParser, AstRenderer, AstTransformer, Node, NodeType};
+use docz_ast::{Attributes, Node, Parser, Processor, Renderer};
 use docz_ast_html::{HTMLParser, HTMLRenderer};
 use docz_ast_md::{MdParser, MdRenderer};
 use log::debug;
@@ -22,11 +22,11 @@ pub struct Service {
     /// Service configuration
     config: Config,
     /// Parsers
-    parsers: HashMap<Format, Box<dyn AstParser>>,
-    /// Transformers
-    transformers: Vec<Box<dyn AstTransformer>>,
+    parsers: HashMap<Format, Box<dyn Parser>>,
+    /// Procesors
+    processors: Vec<Box<dyn Processor>>,
     /// Renderers
-    renderers: HashMap<Format, Box<dyn AstRenderer>>,
+    renderers: HashMap<Format, Box<dyn Renderer>>,
 }
 
 impl Service {
@@ -35,25 +35,25 @@ impl Service {
         Self {
             config,
             parsers: HashMap::new(),
-            transformers: vec![],
+            processors: vec![],
             renderers: HashMap::new(),
         }
     }
 
     /// Adds a parser
-    pub fn parser(mut self, format: Format, parser: impl AstParser + 'static) -> Self {
+    pub fn parser(mut self, format: Format, parser: impl Parser + 'static) -> Self {
         self.parsers.insert(format, Box::new(parser));
         self
     }
 
-    /// Adds a transformer
-    pub fn transformer(mut self, transformer: impl AstTransformer + 'static) -> Self {
-        self.transformers.push(Box::new(transformer));
+    /// Adds a processor
+    pub fn processor(mut self, processor: impl Processor + 'static) -> Self {
+        self.processors.push(Box::new(processor));
         self
     }
 
     /// Adds a renderer
-    pub fn renderer(mut self, format: Format, renderer: impl AstRenderer + 'static) -> Self {
+    pub fn renderer(mut self, format: Format, renderer: impl Renderer + 'static) -> Self {
         self.renderers.insert(format, Box::new(renderer));
         self
     }
@@ -75,7 +75,7 @@ impl Service {
     /// Builds the doc
     pub fn build(&self, format: Format) -> Result<()> {
         let node = self.parse()?;
-        let node = self.transform(node)?;
+        let node = self.process(node)?;
         let out_str = self.render(format, &node)?;
 
         // save as files
@@ -93,25 +93,28 @@ impl Service {
         let src_files = self.source_files()?;
 
         // parse each file
-        let mut doc = Node::default();
-        doc.set_type(NodeType::Document {
-            title: Some(self.config.doc.title.clone()),
-            authors: self.config.doc.authors.clone(),
-        });
+        let mut children = vec![];
         for src_file in &src_files {
             let file_node = self.parse_file(src_file)?;
             debug!("file_node {:#?}", file_node);
-            doc.add_child(file_node);
+            children.push(file_node);
         }
 
-        Ok(doc)
+        Ok(Node::Document {
+            position: None,
+            children,
+            attrs: Attributes::default(),
+            title: Some(self.config.doc.title.clone()),
+            summary: Some(self.config.doc.description.clone()),
+            authors: Some(self.config.doc.authors.clone()),
+        })
     }
 
-    // Applies all the transformers to a node
-    pub fn transform(&self, node: Node) -> Result<Node> {
+    // Applies all the processors to a node
+    pub fn process(&self, node: Node) -> Result<Node> {
         let mut node: Node = node;
-        for t in self.transformers.iter() {
-            node = t.transform(node)?;
+        for processor in self.processors.iter() {
+            node = processor.process(node)?;
         }
         Ok(node)
     }

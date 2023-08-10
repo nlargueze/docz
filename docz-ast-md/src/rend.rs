@@ -1,14 +1,6 @@
 //! Renderer
 
-use docz_ast::{AstRenderer, Error, Node};
-
-/// Rendering error
-#[derive(Debug, thiserror::Error)]
-pub enum RenderError {
-    /// Invalid input
-    #[error("invalid: {0}")]
-    Invalid(String),
-}
+use docz_ast::{Error, Node, Renderer};
 
 /// AST renderer for markdown
 #[derive(Debug, Default)]
@@ -21,9 +13,9 @@ impl MdRenderer {
     }
 }
 
-impl AstRenderer for MdRenderer {
+impl Renderer for MdRenderer {
     fn render(&self, _node: &Node) -> Result<String, Error> {
-        // let mut data = String::new();
         todo!("render to Markdown");
+        // let mut data = String::new();
     }
 }

@@ -71,7 +71,6 @@ impl Config {
 
     /// Loads from a specific file
     pub fn load_from(cfg_file: &Path) -> Result<Self> {
-        debug!("config file: {}", cfg_file.to_string_lossy());
         let data = fs::read(cfg_file)?;
         let data_str = String::from_utf8(data)?;
         toml::from_str::<Config>(&data_str).map_err(|e| e.into())

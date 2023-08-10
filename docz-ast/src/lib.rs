@@ -1,114 +1,299 @@
 //! Generic AST for docz
 
+mod conv;
+mod error;
+
 use std::collections::HashMap;
 
-mod error;
-mod traits;
-
+pub use conv::*;
 pub use error::*;
-pub use traits::*;
 
-/// A node
-#[derive(Debug, Clone, Default)]
-pub struct Node {
-    /// Node type
-    pub ty: NodeType,
-    /// Node attributes
-    pub attrs: HashMap<String, Option<String>>,
-    /// Node value
-    pub value: Option<String>,
-    /// Node children
-    pub children: Vec<Node>,
-}
-
-/// AST node
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum NodeType {
-    /// Generic
-    #[default]
-    Generic,
-    /// Document
+#[derive(Debug, Clone)]
+pub enum Node {
     Document {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
         title: Option<String>,
-        authors: Vec<String>,
+        summary: Option<String>,
+        authors: Option<Vec<String>>,
     },
-    /// Document fragment
-    Fragment,
-    /// Chapter
+    Fragment {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
+    },
     Chapter {
-        title: Option<String>,
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
     },
-    /// Page
-    Page,
-    Section,
+    Section {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
+    },
     Heading {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
         level: u8,
     },
-    Paragraph,
-    Row,
-    PageBreak,
-    LineBreak,
-    SoftBreak,
-    Divider,
-    List {
-        /// if true, the list is ordered
-        ordered: bool,
-        /// For ordered list, the start index
-        start: Option<usize>,
+    BlockQuote {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
     },
-    ListItem,
-    Table,
-    TableRow,
-    FootnoteRef,
-    Footnote,
-    DescrList,
-    DescrItem,
-    DescrTerm,
-    DescrDetails,
-    Link {
-        url: String,
-        title: Option<String>,
+    LineBreak {
+        position: Option<Position>,
     },
-    Image {
-        url: String,
-        title: Option<String>,
+    SoftBreak {
+        position: Option<Position>,
     },
     CodeBlock {
-        lang: Option<String>,
+        position: Option<Position>,
+        value: String,
+        attrs: Attributes,
+        info: String,
     },
-    BlockQuote,
-    HtmlBlock,
-    Text,
-    Comment,
-    Italic,
-    Bold,
-    StrikeThrough,
-    Code,
+    Definition {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
+        id: String,
+        label: String,
+        url: String,
+        title: Option<String>,
+    },
+    Italic {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
+    },
+    Html {
+        position: Option<Position>,
+        value: String,
+        attrs: Attributes,
+    },
+    Image {
+        position: Option<Position>,
+        attrs: Attributes,
+        url: String,
+        alt: String,
+        title: Option<String>,
+    },
+    ImageRef {
+        position: Option<Position>,
+        attrs: Attributes,
+        id: String,
+        label: String,
+        alt: String,
+    },
+    InlineCode {
+        position: Option<Position>,
+        attrs: Attributes,
+        value: String,
+    },
+    Link {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+        url: String,
+        title: String,
+    },
+    LinkRef {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+        id: String,
+        label: String,
+    },
+    List {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+        ordered: bool,
+        start: Option<usize>,
+    },
+    ListItem {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+        checked: Option<bool>,
+    },
+    Paragraph {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    Bold {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    Superscript {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    Text {
+        position: Option<Position>,
+        attrs: Attributes,
+        value: String,
+    },
+    ThematicBreak {
+        position: Option<Position>,
+        attrs: Attributes,
+    },
+    StrikeThrough {
+        position: Option<Position>,
+        children: Vec<Node>,
+        attrs: Attributes,
+    },
+    FootnoteDef {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+        id: String,
+    },
+    FootnoteRef {
+        position: Option<Position>,
+        attrs: Attributes,
+        id: String,
+    },
+    Table {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    TableRow {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+        is_header: bool,
+    },
+    TableCell {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    Metadata {
+        position: Option<Position>,
+        attrs: Attributes,
+        value: String,
+    },
+    DescrList {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    DescrItem {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    DescrTerm {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    DescrDetail {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+    },
+    Comment {
+        position: Option<Position>,
+        attrs: Attributes,
+        value: String,
+    },
+    Other {
+        position: Option<Position>,
+        attrs: Attributes,
+        children: Vec<Node>,
+        name: String,
+    },
 }
 
 impl Node {
-    /// Adds a child to the node
-    pub fn add_child(&mut self, child: Node) -> &mut Self {
-        self.children.push(child);
-        self
+    /// Returns a mutable reference to the children
+    pub fn children_mut(&mut self) -> Option<&mut Vec<Node>> {
+        match self {
+            Node::Document { children, .. } => Some(children),
+            Node::Fragment { children, .. } => Some(children),
+            Node::Chapter { children, .. } => Some(children),
+            Node::Section { children, .. } => Some(children),
+            Node::Heading { children, .. } => Some(children),
+            Node::BlockQuote { children, .. } => Some(children),
+            Node::LineBreak { .. } => None,
+            Node::CodeBlock { .. } => None,
+            Node::Definition { children, .. } => Some(children),
+            Node::Italic { children, .. } => Some(children),
+            Node::Html { .. } => None,
+            Node::Image { .. } => None,
+            Node::ImageRef { .. } => None,
+            Node::InlineCode { .. } => None,
+            Node::Link { children, .. } => Some(children),
+            Node::LinkRef { children, .. } => Some(children),
+            Node::List { children, .. } => Some(children),
+            Node::ListItem { children, .. } => Some(children),
+            Node::Paragraph { children, .. } => Some(children),
+            Node::Bold { children, .. } => Some(children),
+            Node::Text { .. } => None,
+            Node::ThematicBreak { .. } => None,
+            Node::StrikeThrough { children, .. } => Some(children),
+            Node::FootnoteDef { children, .. } => Some(children),
+            Node::FootnoteRef { .. } => None,
+            Node::Table { children, .. } => Some(children),
+            Node::TableRow { children, .. } => Some(children),
+            Node::TableCell { children, .. } => Some(children),
+            Node::Metadata { .. } => None,
+            Node::Other { children, .. } => Some(children),
+            Node::SoftBreak { .. } => None,
+            Node::Superscript { children, .. } => Some(children),
+            Node::DescrList { children, .. } => Some(children),
+            Node::DescrItem { children, .. } => Some(children),
+            Node::DescrTerm { children, .. } => Some(children),
+            Node::DescrDetail { children, .. } => Some(children),
+            Node::Comment { .. } => None,
+        }
     }
+}
 
-    /// Adds an attribute to the node
-    pub fn add_attr(&mut self, key: &str, value: Option<&str>) -> &mut Self {
-        self.attrs
-            .insert(key.to_string(), value.map(|v| v.to_string()));
-        self
+/// Node attributes
+pub type Attributes = HashMap<String, Option<String>>;
+
+/// Node position
+#[derive(Debug, Clone)]
+pub struct Position {
+    /// Start position
+    pub start: Point,
+    /// End position
+    pub end: Point,
+}
+
+impl Position {
+    /// Creates a new position
+    pub fn new(start_line: usize, start_col: usize, end_line: usize, end_col: usize) -> Self {
+        Self {
+            start: Point::new(start_line, start_col),
+            end: Point::new(end_line, end_col),
+        }
     }
+}
 
-    /// Sets the node type
-    pub fn set_type(&mut self, ty: NodeType) -> &mut Self {
-        self.ty = ty;
-        self
-    }
+/// Node position point
+#[derive(Debug, Clone)]
+pub struct Point {
+    /// Line
+    pub line: usize,
+    /// Column
+    pub column: usize,
+}
 
-    /// Sets the node value
-    pub fn set_value(&mut self, value: &str) -> &mut Self {
-        self.value = Some(value.to_string());
-        self
+impl Point {
+    /// Creates a new [Point]
+    pub fn new(line: usize, column: usize) -> Point {
+        Self { line, column }
     }
 }
