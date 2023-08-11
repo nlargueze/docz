@@ -16,8 +16,16 @@ pub trait Processor {
 
 /// AST renderer
 pub trait Renderer {
-    /// Renders an AST to a string
-    fn render(&self, node: &Node) -> Result<String, Error>;
+    /// Renders an AST to bytes
+    fn render(&self, node: &Node) -> Result<Vec<u8>, Error>;
+
+    /// Renders an AST to string
+    fn render_str(&self, node: &Node) -> Result<String, Error> {
+        let bytes = self.render(node)?;
+        let node_str =
+            String::from_utf8(bytes).map_err(|err| Error::new(err.to_string().as_str()))?;
+        Ok(node_str)
+    }
 }
 
 /// Debug renderer
@@ -27,7 +35,7 @@ pub trait Renderer {
 pub struct DebugRenderer {}
 
 impl Renderer for DebugRenderer {
-    fn render(&self, node: &Node) -> Result<String, Error> {
-        Ok(format!("{node:#?}"))
+    fn render(&self, node: &Node) -> Result<Vec<u8>, Error> {
+        Ok(format!("{node:#?}").into_bytes())
     }
 }

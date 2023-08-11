@@ -18,3 +18,4 @@ toml = "0.7.6"
 docz-ast = { version = "0.1.0", path = "../docz-ast" }
 docz-ast-md = { version = "0.1.0", path = "../docz-ast-md" }
 docz-ast-html = { version = "0.1.0", path = "../docz-ast-html" }
+fs_extra = "1.3.0"

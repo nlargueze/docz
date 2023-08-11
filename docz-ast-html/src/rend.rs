@@ -1,7 +1,7 @@
 //! Renderer
 
 use docz_ast::{Error, Node, Renderer};
-use maud::{html, DOCTYPE};
+use maud::{html, PreEscaped, DOCTYPE};
 
 /// AST renderer for markdown
 #[derive(Debug, Default)]
@@ -15,15 +15,15 @@ impl HTMLRenderer {
 }
 
 impl Renderer for HTMLRenderer {
-    fn render(&self, node: &Node) -> Result<String, Error> {
-        self.render_node_iter(node)
+    fn render(&self, node: &Node) -> Result<Vec<u8>, Error> {
+        Ok(self.render_node_iter(node)?.into_string().into_bytes())
     }
 }
 
 impl HTMLRenderer {
     // Renders a node recursively
     #[allow(clippy::only_used_in_recursion)]
-    fn render_node_iter(&self, node: &Node) -> Result<String, Error> {
+    fn render_node_iter(&self, node: &Node) -> Result<PreEscaped<String>, Error> {
         let html = match node {
             Node::Document {
                 span: _,
@@ -31,169 +31,437 @@ impl HTMLRenderer {
                 attrs: _,
                 title,
                 summary: _,
-                authors: _,
-            } => {
-                let title = title.clone().unwrap_or("Title".to_string());
-                let children = self.render_children(children)?;
-                html! {
-                    (DOCTYPE)
-                    html {
-                        head {
-                            title { (title) }
+                authors,
+            } => html! {
+                @let title = title.clone().unwrap_or("Title".to_string());
+                @let children = self.render_children(children)?;
+
+                (DOCTYPE)
+                html xmlns="http://www.w3.org/1999/xhtml" lang="en" {
+                    head {
+                        title { (title) }
+                        meta charset="UTF-8";
+                        @if let Some(authors) = authors {
+                            @for author in authors {
+                                meta name="author" content=(author);
+                            }
                         }
-                        body {
+                    }
+                    body {
+                        (children)
+                    }
+                }
+            },
+            Node::Fragment {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                (children)
+            },
+            Node::Chapter {
+                title: _,
+                span: _,
+                attrs: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                div data-node="chapter" {
+                    (children)
+                }
+            },
+            Node::Section {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                div data-node="section" {
+                    (children)
+                }
+            },
+            Node::Heading {
+                level,
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+                @match level {
+                    1 => h1 {
+                        (children)
+                    },
+                    2 => h2 {
+                        (children)
+                    },
+                    3 => h3 {
+                        (children)
+                    },
+                    4 => h4 {
+                        (children)
+                    },
+                    5 => h5 {
+                        (children)
+                    },
+                    6 => h6 {
+                        (children)
+                    },
+                    _ => h1 {
+                        (children)
+                    },
+                }
+            },
+            Node::BlockQuote {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                blockquote {
+                    (children)
+                }
+            },
+            Node::LineBreak { span: _ } => html! {
+                br;
+            },
+            Node::SoftBreak { span: _ } => html! {
+                // TODO: add soft break here
+            },
+            Node::CodeBlock {
+                info,
+                attrs: _,
+                span: _,
+                value,
+            } => html! {
+                pre data-info=(info) {
+                    code {
+                        (value)
+                    }
+                }
+            },
+            Node::Definition {
+                id: _,
+                label: _,
+                url: _,
+                title: _,
+                attrs: _,
+                span: _,
+                children: _,
+            } => html! {
+                // TODO: add definition here
+            },
+            Node::Italic {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                i {
+                    (children)
+                }
+            },
+            Node::Html {
+                attrs: _,
+                span: _,
+                value,
+            } => html! {
+                (value)
+            },
+            Node::Image {
+                url,
+                alt,
+                title: _,
+                attrs: _,
+                span: _,
+            } => html! {
+                img src=(url) alt=(alt);
+            },
+            Node::ImageRef {
+                id: _,
+                label: _,
+                alt: _,
+                attrs: _,
+                span: _,
+            } => html! {
+                // TODO: image ref
+            },
+            Node::InlineCode {
+                attrs: _,
+                span: _,
+                value,
+            } => html! {
+                code {
+                    (value)
+                }
+            },
+            Node::Link {
+                url,
+                title,
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                a href=(url) title=(title) {
+                    (children)
+                }
+            },
+            Node::LinkRef {
+                id: _,
+                label: _,
+                attrs: _,
+                span: _,
+                children: _,
+            } => html! {
+                // TODO: link ref
+            },
+            Node::List {
+                ordered,
+                start: _,
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                @if *ordered {
+                    ol {
+                        (children)
+                    }
+                } @else {
+                    ul {
+                        (children)
+                    }
+                }
+            },
+            Node::ListItem {
+                checked,
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                @if let Some(checked) = *checked {
+                    @if checked {
+                        li data-checked="true" {
+                            (children)
+                        }
+                    } @else {
+                        li {
+                            (children)
+                        }
+                    }
+                } else {
+                    li {
+                        (children)
+                    }
+                }
+
+            },
+            Node::Paragraph {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                p {
+                    (children)
+                }
+            },
+            Node::Bold {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                b {
+                    (children)
+                }
+            },
+            Node::Superscript {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                sup {
+                    (children)
+                }
+            },
+            Node::Text {
+                attrs: _,
+                span: _,
+                value,
+            } => html! {
+                (value)
+            },
+            Node::ThematicBreak { attrs: _, span: _ } => html! {
+                hr;
+            },
+            Node::StrikeThrough {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                s {
+                    (children)
+                }
+            },
+            Node::FootnoteDef {
+                id,
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                div data-type="footnote" data-id=(id) {
+                    (children)
+                }
+            },
+            Node::FootnoteRef {
+                id,
+                attrs: _,
+                span: _,
+            } => html! {
+                span {
+                    a href=(format!("#{}", id)) data-type="footnote-ref" {
+                        (id)
+                    }
+                }
+            },
+            Node::Table {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                table {
+                    (children)
+                }
+            },
+            Node::TableRow {
+                is_header,
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                @if *is_header {
+                    thead {
+                        tr {
+                            (children)
+                        }
+                    }
+                } @else {
+                    tbody {
+                        tr {
                             (children)
                         }
                     }
                 }
-            }
-            // NodeType::Page => Ok(formatdoc! {"
-            // //     <div x-tag=\"page\">
-            // //     {children}
-            // //     </div>
-            // // "}),
-            _ => {
-                html! {}
-            }
-            // Node::Section => Ok(formatdoc! {"
-            //     <section>
-            //     {children}
-            //     </section>
-            // "}),
-            // NodeType::Heading { level } => Ok(formatdoc! {"
-            //     <h{level}>
-            //     {children}
-            //     </h{level}>
-            // "}),
-            // NodeType::Paragraph => Ok(formatdoc! {"
-            //     <p>
-            //     {children}
-            //     </p>
-            // "}),
-            // NodeType::Row => Ok(formatdoc! {"
-            //     <div>
-            //     {children}
-            //     </div>
-            // "}),
-            // NodeType::PageBreak => Ok(formatdoc! {"
-            //     <br>
-            // "}),
-            // NodeType::LineBreak => Ok(formatdoc! {"
-            //     <br>
-            // "}),
-            // NodeType::SoftBreak => Ok(formatdoc! {"
-            //     &shy;
-            // "}),
-            // NodeType::Divider => Ok(formatdoc! {"
-            //     <hr/>
-            // "}),
-            // NodeType::List { ordered, start: _ } => {
-            //     if *ordered {
-            //         Ok(formatdoc! {"
-            //             <ul>
-            //             {children}
-            //             </ul>
-            //         "})
-            //     } else {
-            //         Ok(formatdoc! {"
-            //             <ol>
-            //             {children}
-            //             </ol>
-            //         "})
-            //     }
-            // }
-            // NodeType::ListItem => Ok(formatdoc! {"
-            //     <li>
-            //     {children}
-            //     </li>
-            // "}),
-            // NodeType::Table => todo!(),
-            // NodeType::TableRow => todo!(),
-            // NodeType::FootnoteRef => todo!(),
-            // NodeType::Footnote => todo!(),
-            // NodeType::DescrList => Ok(formatdoc! {"
-            //     <dl>
-            //     {children}
-            //     </dl>
-            // "}),
-            // NodeType::DescrItem => Ok(formatdoc! {"
-            //     <dt>
-            //     {children}
-            //     </dt>
-            // "}),
-            // NodeType::DescrTerm => Ok(formatdoc! {"
-            //     <dt>
-            //     {children}
-            //     </dt>
-            // "}),
-            // NodeType::DescrDetails => Ok(formatdoc! {"
-            //     <dd>
-            //     {children}
-            //     </dd>
-            // "}),
-            // NodeType::Link { url, title: _ } => Ok(formatdoc! {"
-            //     <a href=\"{url}\">
-            //     {children}
-            //     </a>
-            // "}),
-            // NodeType::Image { url, title } => {
-            //     let title = title.clone().unwrap_or("".to_string());
-            //     Ok(formatdoc! {"
-            //         <img src=\"{url}\" alt=\"{title}\">
-            //     "})
-            // }
-            // NodeType::CodeBlock { lang } => {
-            //     let lang = lang.clone().unwrap_or("".to_string());
-            //     Ok(formatdoc! {"
-            //         <pre>
-            //         <code class=\"language-{lang}\">
-            //         {children}
-            //         </code>
-            //         </pre>
-            //     "})
-            // }
-            // NodeType::BlockQuote => Ok(formatdoc! {"
-            //     <blockquote>
-            //     {children}
-            //     </blockquote>
-            // "}),
-            // NodeType::HtmlBlock => Ok(children),
-            // NodeType::Text => Ok(value),
-            // NodeType::Comment => Ok(formatdoc! {"
-            //     <!-- {value} -->
-            // "}),
-            // NodeType::Italic => Ok(formatdoc! {"
-            //     <i>
-            //     {children}
-            //     </i>
-            // "}),
-            // NodeType::Bold => Ok(formatdoc! {"
-            //     <b>
-            //     {children}
-            //     </b>
-            // "}),
-            // NodeType::StrikeThrough => Ok(formatdoc! {"
-            //     <s>
-            //     {children}
-            //     </s>
-            // "}),
-            // NodeType::Code => Ok(formatdoc! {"
-            //     <code>
-            //     {children}
-            //     </code>
-            // "}),
+
+            },
+            Node::TableCell {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                td {
+                    (children)
+                }
+            },
+            Node::Metadata { .. } => html! {},
+            Node::DescrList {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                dl {
+                    (children)
+                }
+            },
+            Node::DescrItem {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                dt {
+                    (children)
+                }
+            },
+            Node::DescrTerm {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                dt {
+                    (children)
+                }
+            },
+            Node::DescrDetail {
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                dd {
+                    (children)
+                }
+            },
+            Node::Comment { .. } => html! {},
+            Node::Other {
+                name,
+                attrs: _,
+                span: _,
+                children,
+            } => html! {
+                @let children = self.render_children(children)?;
+
+                div data-name=(name) {
+                    (children)
+                }
+            },
         };
 
-        Ok(html.into_string())
+        Ok(html)
     }
 
     // Renders a list of children
-    fn render_children(&self, children: &[Node]) -> Result<String, Error> {
+    fn render_children(&self, children: &[Node]) -> Result<PreEscaped<String>, Error> {
         let mut children_str = vec![];
         for child in children.iter() {
             let child_str = self.render_node_iter(child)?;
             children_str.push(child_str);
         }
-        Ok(children_str.join("\n"))
+        Ok(html! {
+            @for child in children_str {
+                (child)
+            }
+        })
     }
 }

@@ -1,2 +1,9 @@
 [workspace]
-members = ["docz-cli", "docz-lib", "docz-ast", "docz-ast-md", "docz-ast-html"]
+members = [
+    "docz-cli",
+    "docz-lib",
+    "docz-ast",
+    "docz-ast-md",
+    "docz-ast-html",
+    "docz-ast-pdf",
+]

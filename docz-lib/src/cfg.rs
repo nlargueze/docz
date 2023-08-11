@@ -88,7 +88,19 @@ impl Config {
         fs::create_dir(src_dir)?;
 
         // create the .gitignore
-        fs::write(".gitignore", "build")?;
+        let gitignore_file = PathBuf::from(".gitignore");
+        if gitignore_file.exists() {
+            return Err(anyhow::anyhow!(".gitignore already exists"));
+        }
+        fs::write(gitignore_file, "build")?;
+
+        // create the assets folder
+        let assets_dir = cfg.assets_dir();
+        if assets_dir.exists() {
+            return Err(anyhow::anyhow!("assets directory already exists"));
+        }
+        fs::create_dir(assets_dir)?;
+
         Ok(())
     }
 
@@ -121,5 +133,10 @@ impl Config {
         env::current_dir()
             .expect("invalid current directory")
             .join(&self.build.dir)
+    }
+
+    /// Returns the assets directory
+    pub fn assets_dir(&self) -> PathBuf {
+        self.src_dir().join("assets")
     }
 }

@@ -25,6 +25,6 @@ fn test_render() {
         authors: None,
     };
     let renderer = MdRenderer::new();
-    let file_str = renderer.render(&node).unwrap();
+    let file_str = renderer.render_str(&node).unwrap();
     eprintln!("{file_str}");
 }

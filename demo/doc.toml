@@ -1,7 +1,7 @@
 [doc]
 title = "Title"
-description = ""
-authors = []
+description = "My description"
+authors = ["nick"]
 files = ["00-intro.md"]
 
 [build]

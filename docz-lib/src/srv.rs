@@ -7,14 +7,16 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use docz_ast::{Attrs, DebugRenderer, Error, Node, Parser, Processor, Renderer};
+use docz_ast::{DebugRenderer, Node, Parser, Processor, Renderer};
 use docz_ast_html::{HTMLParser, HTMLRenderer};
 use docz_ast_md::{MdParser, MdRenderer};
+use fs_extra::dir::CopyOptions;
 use log::debug;
 
 use crate::{
     cfg::Config,
     fmt::{FileExt, Format},
+    ChapterAggregProcessor, DocMetadataProcessor,
 };
 
 /// Doc service
@@ -61,13 +63,23 @@ impl Service {
     /// Adds a set of default parsers and renderers
     pub fn defaults(self) -> Self {
         let md_parser = MdParser::new();
-        let md_renderer = MdRenderer::new();
         let html_parser = HTMLParser::new();
+
+        let chapter_processor = ChapterAggregProcessor::default();
+        let doc_meta_processor = DocMetadataProcessor::new(
+            Some(self.config.doc.title.clone()),
+            Some(self.config.doc.description.clone()),
+            Some(self.config.doc.authors.clone()),
+        );
+
         let html_renderer = HTMLRenderer::new();
+        let md_renderer = MdRenderer::new();
         let debug_renderer = DebugRenderer::default();
+
         self.parser(Format::Markdown, md_parser)
             .parser(Format::Html, html_parser)
-            .processor(FileAggregator::default())
+            .processor(chapter_processor)
+            .processor(doc_meta_processor)
             .renderer(Format::Markdown, md_renderer)
             .renderer(Format::Html, html_renderer)
             .renderer(Format::Debug, debug_renderer)
@@ -77,16 +89,20 @@ impl Service {
 impl Service {
     /// Builds the doc
     pub fn build(&self, format: Format) -> Result<()> {
+        debug!("build config \n {:#?}", self.config);
         let nodes = self.parse()?;
         let nodes = self.process(nodes)?;
         let docs = self.render(format, &nodes)?;
 
-        // save as files
+        // reset build dir
         let build_dir = self.config.build_dir();
         if build_dir.exists() {
             fs::remove_dir_all(&build_dir)?;
         }
         fs::create_dir_all(&build_dir)?;
+
+        // copy static files
+        self.copy_assets_to_build_dir()?;
 
         for (i, doc) in docs.iter().enumerate() {
             let mut out_file = build_dir.join(if i == 0 {
@@ -103,13 +119,12 @@ impl Service {
 
     /// Parses the input files to AST nodes
     pub fn parse(&self) -> Result<Vec<Node>> {
-        // get the source files
-        let src_files = self.source_files()?;
-
         // parse each file to AST nodes
         let mut nodes = vec![];
-        for src_file in &src_files {
-            let node = self.parse_src_file(src_file)?;
+        for src_file in &self.source_files()? {
+            debug!("parsing file ... \n {}", src_file.to_string_lossy());
+            let node = self.parse_file(src_file)?;
+            debug!("AST node \n {:#?}", node);
             nodes.push(node);
         }
 
@@ -121,12 +136,13 @@ impl Service {
         let mut nodes = nodes;
         for processor in self.processors.iter() {
             nodes = processor.process(nodes)?;
+            debug!("Post process \n {:#?}", nodes);
         }
         Ok(nodes)
     }
 
-    // Renders the nodes
-    pub fn render(&self, format: Format, nodes: &[Node]) -> Result<Vec<String>> {
+    // Renders the nodes to a specific format
+    pub fn render(&self, format: Format, nodes: &[Node]) -> Result<Vec<Vec<u8>>> {
         let renderer = self
             .renderers
             .get(&format)
@@ -134,8 +150,15 @@ impl Service {
 
         let mut nodes_str = vec![];
         for node in nodes {
-            let node_str = renderer.render(node)?;
-            nodes_str.push(node_str);
+            let node_bytes = renderer.render(node)?;
+            if format.is_binary() {
+                debug!("Post render ({format})\n BINARY");
+            } else {
+                let node_str = renderer.render_str(node)?;
+                debug!("Post render ({format})\n {node_str}");
+            }
+
+            nodes_str.push(node_bytes);
         }
         Ok(nodes_str)
     }
@@ -155,9 +178,7 @@ impl Service {
     }
 
     /// Parses a source file
-    fn parse_src_file(&self, file: &Path) -> Result<Node> {
-        debug!("Processing {:?}", file);
-
+    fn parse_file(&self, file: &Path) -> Result<Node> {
         let format = file.format().ok_or(anyhow!("Unsupported file format"))?;
         let parser = self
             .parsers
@@ -167,43 +188,14 @@ impl Service {
         let file_str = fs::read_to_string(file)?;
         Ok(parser.parse(&file_str)?)
     }
-}
 
-/// File aggregator
-///
-/// Each file is treated as a chapter and those chapters are aggregated into a single document
-#[derive(Debug, Default)]
-struct FileAggregator {}
-
-impl Processor for FileAggregator {
-    fn process(&self, nodes: Vec<Node>) -> Result<Vec<Node>, Error> {
-        let chapters = nodes
-            .into_iter()
-            .filter_map(|node| {
-                node.visit_and_modify(|node| match node {
-                    Node::Document {
-                        span,
-                        children,
-                        attrs,
-                        ..
-                    } => Some(Node::Chapter {
-                        span: span.clone(),
-                        children: children.clone(),
-                        attrs: attrs.clone(),
-                    }),
-                    // any other node is kept as is
-                    _ => Some(node.clone()),
-                })
-            })
-            .collect::<Vec<_>>();
-
-        Ok(vec![Node::Document {
-            span: None,
-            children: chapters,
-            attrs: Attrs::default(),
-            title: None,
-            summary: None,
-            authors: None,
-        }])
+    /// Copies the assets dir to the build dir
+    fn copy_assets_to_build_dir(&self) -> Result<()> {
+        let assets_dir = self.config.assets_dir();
+        if assets_dir.exists() {
+            let build_dir = self.config.build_dir();
+            fs_extra::dir::copy(assets_dir, build_dir, &CopyOptions::new())?;
+        }
+        Ok(())
     }
 }

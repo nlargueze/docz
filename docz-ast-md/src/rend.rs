@@ -14,7 +14,7 @@ impl MdRenderer {
 }
 
 impl Renderer for MdRenderer {
-    fn render(&self, _node: &Node) -> Result<String, Error> {
+    fn render(&self, _node: &Node) -> Result<Vec<u8>, Error> {
         todo!("render to Markdown");
         // let mut data = String::new();
     }

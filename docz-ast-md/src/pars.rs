@@ -18,6 +18,9 @@ impl MdParser {
     }
 }
 
+/// Front matter separator
+const FRONTMATTER_SEP: &str = "---";
+
 impl Parser for MdParser {
     fn parse(&self, data: &str) -> Result<Node, Error> {
         let arena = Arena::new();
@@ -28,7 +31,7 @@ impl Parser for MdParser {
         opts.extension.autolink = true;
         opts.extension.tasklist = true;
         opts.extension.footnotes = true;
-        opts.extension.front_matter_delimiter = Some("---".to_string());
+        opts.extension.front_matter_delimiter = Some(FRONTMATTER_SEP.to_string());
         let md_root = comrak::parse_document(&arena, data, &opts);
         // eprintln!("{md_root:#?}");
 
@@ -67,11 +70,20 @@ impl MdParser {
                 summary: None,
                 authors: None,
             },
-            NodeValue::FrontMatter(fmatter) => Node::Metadata {
-                span,
-                attrs,
-                value: fmatter.to_string(),
-            },
+            NodeValue::FrontMatter(fmatter) => {
+                let fmatter = fmatter.trim();
+                let fmatter = fmatter
+                    .strip_prefix(FRONTMATTER_SEP)
+                    .ok_or(Error::new("invalid front matter prefix"))?;
+                let fmatter = fmatter
+                    .strip_suffix(FRONTMATTER_SEP)
+                    .ok_or(Error::new("invalid front matter suffix"))?;
+                Node::Metadata {
+                    span,
+                    attrs,
+                    value: fmatter.to_string(),
+                }
+            }
             NodeValue::BlockQuote => Node::BlockQuote {
                 span,
                 children,

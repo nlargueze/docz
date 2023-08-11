@@ -1,0 +1,8 @@
+[package]
+name = "docz-ast-pdf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+docz-ast = { version = "0.1.0", path = "../docz-ast" }
+printpdf = "0.5.3"

@@ -34,6 +34,6 @@ fn test_render() {
     };
 
     let renderer = HTMLRenderer::new();
-    let html = renderer.render(&node).unwrap();
+    let html = renderer.render_str(&node).unwrap();
     eprintln!("{html}");
 }

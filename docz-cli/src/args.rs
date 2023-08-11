@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
+
+use crate::cmd::Command;
 
 /// CLI arguments
 #[derive(Parser)]
@@ -23,17 +25,4 @@ pub struct CliArgs {
     /// Commands
     #[command(subcommand)]
     pub command: Command,
-}
-
-/// CLI command
-#[derive(Subcommand)]
-pub enum Command {
-    /// Initializes the project
-    Init {},
-    /// Builds the project
-    Build {
-        /// Output format
-        #[arg(short, long)]
-        out: String,
-    },
 }

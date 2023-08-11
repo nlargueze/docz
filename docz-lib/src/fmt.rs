@@ -14,6 +14,16 @@ pub enum Format {
     Debug,
 }
 
+impl Format {
+    /// Checks if a format is binary
+    pub fn is_binary(&self) -> bool {
+        match self {
+            Format::Markdown | Format::Html | Format::Debug => false,
+            Format::Pdf | Format::Epub => true,
+        }
+    }
+}
+
 impl Display for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
