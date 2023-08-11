@@ -26,7 +26,7 @@ impl HTMLRenderer {
     fn render_node_iter(&self, node: &Node) -> Result<String, Error> {
         let html = match node {
             Node::Document {
-                position: _,
+                span: _,
                 children,
                 attrs: _,
                 title,

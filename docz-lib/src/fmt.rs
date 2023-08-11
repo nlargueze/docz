@@ -11,15 +11,17 @@ pub enum Format {
     Html,
     Pdf,
     Epub,
+    Debug,
 }
 
 impl Display for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
-            Format::Markdown => "md",
+            Format::Markdown => "markdown",
             Format::Html => "html",
             Format::Pdf => "pdf",
             Format::Epub => "epub",
+            Format::Debug => "debug",
         };
         write!(f, "{}", value)
     }
@@ -30,16 +32,17 @@ impl FromStr for Format {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "md" => Ok(Format::Markdown),
-            "html" => Ok(Format::Html),
+            "md" | "markdown" | "mdx" => Ok(Format::Markdown),
+            "html" | "xhtml" => Ok(Format::Html),
             "pdf" => Ok(Format::Pdf),
             "epub" => Ok(Format::Epub),
+            "debug" => Ok(Format::Debug),
             _ => Err(anyhow!("invalid format: {}", s)),
         }
     }
 }
 
-/// Extension trait to retrieve
+/// Extension trait for file formats
 pub trait FileExt {
     /// Retrieves the format based on the file extension
     fn format(&self) -> Option<Format>;
@@ -49,11 +52,7 @@ impl<'a> FileExt for &'a Path {
     fn format(&self) -> Option<Format> {
         match self.extension() {
             Some(ext) => match ext.to_str() {
-                Some(ext) => match ext {
-                    "md" | "mdx" | "markdown" => Some(Format::Markdown),
-                    "html" => Some(Format::Html),
-                    _ => None,
-                },
+                Some(ext) => ext.parse::<Format>().ok(),
                 None => None,
             },
             None => None,

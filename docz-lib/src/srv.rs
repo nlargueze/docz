@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use docz_ast::{Attributes, Node, Parser, Processor, Renderer};
+use docz_ast::{Attrs, DebugRenderer, Error, Node, Parser, Processor, Renderer};
 use docz_ast_html::{HTMLParser, HTMLRenderer};
 use docz_ast_md::{MdParser, MdRenderer};
 use log::debug;
@@ -17,7 +17,7 @@ use crate::{
     fmt::{FileExt, Format},
 };
 
-/// Doc ervice
+/// Doc service
 pub struct Service {
     /// Service configuration
     config: Config,
@@ -64,69 +64,80 @@ impl Service {
         let md_renderer = MdRenderer::new();
         let html_parser = HTMLParser::new();
         let html_renderer = HTMLRenderer::new();
+        let debug_renderer = DebugRenderer::default();
         self.parser(Format::Markdown, md_parser)
             .parser(Format::Html, html_parser)
+            .processor(FileAggregator::default())
             .renderer(Format::Markdown, md_renderer)
             .renderer(Format::Html, html_renderer)
+            .renderer(Format::Debug, debug_renderer)
     }
 }
 
 impl Service {
     /// Builds the doc
     pub fn build(&self, format: Format) -> Result<()> {
-        let node = self.parse()?;
-        let node = self.process(node)?;
-        let out_str = self.render(format, &node)?;
+        let nodes = self.parse()?;
+        let nodes = self.process(nodes)?;
+        let docs = self.render(format, &nodes)?;
 
         // save as files
         let build_dir = self.config.build_dir();
-        let mut out_file = build_dir.join("doc");
-        out_file.set_extension(format.to_string());
-        fs::write(out_file, out_str)?;
+        if build_dir.exists() {
+            fs::remove_dir_all(&build_dir)?;
+        }
+        fs::create_dir_all(&build_dir)?;
+
+        for (i, doc) in docs.iter().enumerate() {
+            let mut out_file = build_dir.join(if i == 0 {
+                "doc".to_string()
+            } else {
+                format!("doc_{i}")
+            });
+            out_file.set_extension(format.to_string());
+            fs::write(out_file, doc)?;
+        }
 
         Ok(())
     }
 
-    /// Parses a set of files to an AST node
-    pub fn parse(&self) -> Result<Node> {
+    /// Parses the input files to AST nodes
+    pub fn parse(&self) -> Result<Vec<Node>> {
         // get the source files
         let src_files = self.source_files()?;
 
-        // parse each file
-        let mut children = vec![];
+        // parse each file to AST nodes
+        let mut nodes = vec![];
         for src_file in &src_files {
-            let file_node = self.parse_file(src_file)?;
-            debug!("file_node {:#?}", file_node);
-            children.push(file_node);
+            let node = self.parse_src_file(src_file)?;
+            nodes.push(node);
         }
 
-        Ok(Node::Document {
-            position: None,
-            children,
-            attrs: Attributes::default(),
-            title: Some(self.config.doc.title.clone()),
-            summary: Some(self.config.doc.description.clone()),
-            authors: Some(self.config.doc.authors.clone()),
-        })
+        Ok(nodes)
     }
 
-    // Applies all the processors to a node
-    pub fn process(&self, node: Node) -> Result<Node> {
-        let mut node: Node = node;
+    // Processes the nodes
+    pub fn process(&self, nodes: Vec<Node>) -> Result<Vec<Node>> {
+        let mut nodes = nodes;
         for processor in self.processors.iter() {
-            node = processor.process(node)?;
+            nodes = processor.process(nodes)?;
         }
-        Ok(node)
+        Ok(nodes)
     }
 
-    // Renders a node to the target format
-    pub fn render(&self, format: Format, node: &Node) -> Result<String> {
+    // Renders the nodes
+    pub fn render(&self, format: Format, nodes: &[Node]) -> Result<Vec<String>> {
         let renderer = self
             .renderers
             .get(&format)
             .ok_or(anyhow!("No renderer for format {:?}", format))?;
-        let out_str = renderer.render(node)?;
-        Ok(out_str)
+
+        let mut nodes_str = vec![];
+        for node in nodes {
+            let node_str = renderer.render(node)?;
+            nodes_str.push(node_str);
+        }
+        Ok(nodes_str)
     }
 
     /// Retrieves all the source files
@@ -143,18 +154,56 @@ impl Service {
         Ok(files)
     }
 
-    /// Parses a single source file
-    fn parse_file(&self, file: &Path) -> Result<Node> {
+    /// Parses a source file
+    fn parse_src_file(&self, file: &Path) -> Result<Node> {
         debug!("Processing {:?}", file);
 
         let format = file.format().ok_or(anyhow!("Unsupported file format"))?;
         let parser = self
             .parsers
             .get(&format)
-            .ok_or(anyhow!("No parser for format {:?}", format))?;
+            .ok_or(anyhow!("No parser for format '{}'", format))?;
 
         let file_str = fs::read_to_string(file)?;
-        let node = parser.parse(&file_str)?;
-        Ok(node)
+        Ok(parser.parse(&file_str)?)
+    }
+}
+
+/// File aggregator
+///
+/// Each file is treated as a chapter and those chapters are aggregated into a single document
+#[derive(Debug, Default)]
+struct FileAggregator {}
+
+impl Processor for FileAggregator {
+    fn process(&self, nodes: Vec<Node>) -> Result<Vec<Node>, Error> {
+        let chapters = nodes
+            .into_iter()
+            .filter_map(|node| {
+                node.visit_and_modify(|node| match node {
+                    Node::Document {
+                        span,
+                        children,
+                        attrs,
+                        ..
+                    } => Some(Node::Chapter {
+                        span: span.clone(),
+                        children: children.clone(),
+                        attrs: attrs.clone(),
+                    }),
+                    // any other node is kept as is
+                    _ => Some(node.clone()),
+                })
+            })
+            .collect::<Vec<_>>();
+
+        Ok(vec![Node::Document {
+            span: None,
+            children: chapters,
+            attrs: Attrs::default(),
+            title: None,
+            summary: None,
+            authors: None,
+        }])
     }
 }

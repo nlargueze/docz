@@ -1,6 +1,6 @@
 //! Error
 
-use crate::{Node, Position};
+use crate::{Node, Span};
 
 /// AST error
 #[derive(Debug, thiserror::Error)]
@@ -9,7 +9,7 @@ pub struct Error {
     /// Error message
     pub message: String,
     /// Optional position
-    pub position: Option<Position>,
+    pub position: Option<Span>,
     /// Optional node
     pub node: Option<Node>,
 }
@@ -25,7 +25,7 @@ impl Error {
     }
 
     /// Assigns a position to the error
-    pub fn position(mut self, position: Position) -> Self {
+    pub fn position(mut self, position: Span) -> Self {
         self.position = Some(position);
         self
     }

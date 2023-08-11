@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{Error, Result};
-use log::debug;
 use serde::{Deserialize, Serialize};
 
 /// Configuration
@@ -63,8 +62,7 @@ impl Config {
     pub fn load() -> Result<Self> {
         let cwd = env::current_dir()?;
         let cfg_file = cwd.join(Self::DEFAULT_NAME);
-        debug!("config file: {}", cfg_file.to_string_lossy());
-        let data = fs::read(&cfg_file)?;
+        let data = fs::read(cfg_file)?;
         let data_str = String::from_utf8(data)?;
         toml::from_str::<Config>(&data_str).map_err(|e| e.into())
     }

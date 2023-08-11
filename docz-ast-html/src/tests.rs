@@ -1,6 +1,6 @@
 //! Tests
 
-use docz_ast::{Attributes, Node, Parser, Renderer};
+use docz_ast::{Attrs, Node, Parser, Renderer};
 
 use super::*;
 
@@ -17,17 +17,17 @@ fn test_parse() {
 #[test]
 fn test_render() {
     let node = Node::Document {
-        position: None,
-        attrs: Attributes::default(),
+        span: None,
+        attrs: Attrs::default(),
         title: Some("Title".to_string()),
         summary: None,
         authors: None,
         children: vec![Node::Paragraph {
-            position: None,
-            attrs: Attributes::default(),
+            span: None,
+            attrs: Attrs::default(),
             children: vec![Node::Text {
-                position: None,
-                attrs: Attributes::default(),
+                span: None,
+                attrs: Attrs::default(),
                 value: "Hello".to_string(),
             }],
         }],

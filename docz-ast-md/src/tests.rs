@@ -1,6 +1,6 @@
 //! Unit tests
 
-use docz_ast::{Attributes, Node, Parser, Renderer};
+use docz_ast::{Attrs, Node, Parser, Renderer};
 
 use super::*;
 
@@ -17,9 +17,9 @@ fn test_parse() {
 #[ignore]
 fn test_render() {
     let node = Node::Document {
-        position: None,
+        span: None,
         children: vec![],
-        attrs: Attributes::new(),
+        attrs: Attrs::new(),
         title: None,
         summary: None,
         authors: None,

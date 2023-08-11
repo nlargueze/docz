@@ -1,6 +1,6 @@
 //! Parser
 
-use docz_ast::{Attributes, Error, Node, Parser, Position};
+use docz_ast::{Attrs, Error, Node, Parser, Span};
 use html_parser::Dom;
 
 /// HTML parser
@@ -29,9 +29,9 @@ impl Parser for HTMLParser {
         }
 
         Ok(Node::Fragment {
-            position: None,
+            span: None,
             children,
-            attrs: Attributes::new(),
+            attrs: Attrs::new(),
         })
     }
 }
@@ -42,13 +42,13 @@ impl HTMLParser {
     fn parse_node_iter(&self, html_node: &html_parser::Node) -> Result<Node, Error> {
         let node = match html_node {
             html_parser::Node::Text(text) => Node::Text {
-                position: None,
-                attrs: Attributes::default(),
+                span: None,
+                attrs: Attrs::default(),
                 value: text.clone(),
             },
             html_parser::Node::Comment(comment) => Node::Comment {
-                position: None,
-                attrs: Attributes::default(),
+                span: None,
+                attrs: Attrs::default(),
                 value: comment.clone(),
             },
             html_parser::Node::Element(element) => {
@@ -68,8 +68,8 @@ impl HTMLParser {
 
     /// Maps HTML tags to AST types
     fn parse_html_element(&self, element: &html_parser::Element) -> Node {
-        // node position
-        let position = Some(Position::new(
+        // node span
+        let span = Some(Span::new(
             element.source_span.start_line,
             element.source_span.start_column,
             element.source_span.end_line,
@@ -77,7 +77,7 @@ impl HTMLParser {
         ));
 
         // node attributes
-        let attrs = Attributes::default();
+        let attrs = Attrs::default();
 
         // node children
         let children = vec![];
@@ -92,7 +92,7 @@ impl HTMLParser {
             "aside" => todo!(),
             "audio" => todo!(),
             "b" => Node::Bold {
-                position,
+                span,
                 attrs,
                 children,
             },
@@ -100,22 +100,22 @@ impl HTMLParser {
             "bdi" => todo!(),
             "bdo" => todo!(),
             "blockquote" => Node::BlockQuote {
-                position,
+                span,
                 children,
                 attrs,
             },
             "body" => todo!(),
-            "br" => Node::LineBreak { position },
+            "br" => Node::LineBreak { span },
             "button" => todo!(),
             "canvas" => todo!(),
             "caption" => todo!(),
             "cite" => Node::BlockQuote {
-                position,
+                span,
                 children,
                 attrs,
             },
             "code" => Node::InlineCode {
-                position,
+                span,
                 value: "".to_string(),
                 attrs,
             },

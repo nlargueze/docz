@@ -4,7 +4,7 @@ use comrak::{
     nodes::{AstNode, NodeValue},
     Arena, ComrakOptions,
 };
-use docz_ast::{Attributes, Error, Node, Parser, Point, Position};
+use docz_ast::{Attrs, Error, Node, Parser, Span};
 use serde::Deserialize;
 
 /// AST parser for markdown
@@ -42,21 +42,17 @@ impl MdParser {
     fn parse_node_iter<'a>(&self, ast_root: &'a AstNode<'a>) -> Result<Node, Error> {
         // eprintln!("ast_root: {:#?}", ast_root.data);
 
-        // node position
+        // node span
         let src_repos = &ast_root.data.borrow().sourcepos;
-        let position = Some(Position {
-            start: Point {
-                line: src_repos.start.line,
-                column: src_repos.start.column,
-            },
-            end: Point {
-                line: src_repos.end.line,
-                column: src_repos.end.column,
-            },
-        });
+        let span = Some(Span::new(
+            src_repos.start.line,
+            src_repos.start.column,
+            src_repos.end.line,
+            src_repos.end.column,
+        ));
 
         // node attributes
-        let attrs = Attributes::new();
+        let attrs = Attrs::new();
 
         // node children
         let children = vec![];
@@ -64,7 +60,7 @@ impl MdParser {
         // parse node
         let mut node = match &ast_root.data.borrow().value {
             NodeValue::Document => Node::Document {
-                position,
+                span,
                 children,
                 attrs,
                 title: None,
@@ -72,25 +68,25 @@ impl MdParser {
                 authors: None,
             },
             NodeValue::FrontMatter(fmatter) => Node::Metadata {
-                position,
+                span,
                 attrs,
                 value: fmatter.to_string(),
             },
             NodeValue::BlockQuote => Node::BlockQuote {
-                position,
+                span,
                 children,
                 attrs,
             },
             NodeValue::List(list) => match list.list_type {
                 comrak::nodes::ListType::Bullet => Node::List {
-                    position,
+                    span,
                     attrs,
                     children,
                     ordered: false,
                     start: None,
                 },
                 comrak::nodes::ListType::Ordered => Node::List {
-                    position,
+                    span,
                     attrs,
                     children,
                     ordered: true,
@@ -98,134 +94,134 @@ impl MdParser {
                 },
             },
             NodeValue::Item(_item) => Node::ListItem {
-                position,
+                span,
                 attrs,
                 children,
                 checked: None,
             },
             NodeValue::DescriptionList => Node::DescrList {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::DescriptionItem(_item) => Node::DescrItem {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::DescriptionTerm => Node::DescrItem {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::DescriptionDetails => Node::DescrDetail {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::CodeBlock(block) => Node::CodeBlock {
-                position,
+                span,
                 value: block.literal.to_string(),
                 attrs,
                 info: block.info.to_string(),
             },
             NodeValue::HtmlBlock(block) => Node::Html {
-                position,
+                span,
                 attrs,
                 value: block.literal.to_string(),
             },
             NodeValue::Paragraph => Node::Paragraph {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::Heading(heading) => Node::Heading {
-                position,
+                span,
                 children,
                 attrs,
                 level: heading.level,
             },
-            NodeValue::ThematicBreak => Node::ThematicBreak { position, attrs },
+            NodeValue::ThematicBreak => Node::ThematicBreak { span, attrs },
             NodeValue::Table(_table) => Node::Table {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::TableRow(row) => Node::TableRow {
-                position,
+                span,
                 attrs,
                 children,
                 is_header: *row,
             },
             NodeValue::TableCell => Node::TableCell {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::Text(text) => Node::Text {
-                position,
+                span,
                 attrs,
                 value: text.to_string(),
             },
             NodeValue::TaskItem(item) => Node::ListItem {
-                position,
+                span,
                 attrs,
                 children,
                 checked: Some(item.is_some()),
             },
-            NodeValue::SoftBreak => Node::SoftBreak { position },
-            NodeValue::LineBreak => Node::LineBreak { position },
+            NodeValue::SoftBreak => Node::SoftBreak { span },
+            NodeValue::LineBreak => Node::LineBreak { span },
             NodeValue::Code(code) => Node::InlineCode {
-                position,
+                span,
                 attrs,
                 value: code.literal.to_string(),
             },
             NodeValue::HtmlInline(html) => Node::Html {
-                position,
+                span,
                 value: html.to_string(),
                 attrs,
             },
             NodeValue::Emph => Node::Italic {
-                position,
+                span,
                 children,
                 attrs,
             },
             NodeValue::Strong => Node::Bold {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::Strikethrough => Node::StrikeThrough {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::Superscript => Node::Superscript {
-                position,
+                span,
                 attrs,
                 children,
             },
             NodeValue::Link(link) => Node::Link {
-                position,
+                span,
                 attrs,
                 children,
                 url: link.url.clone(),
                 title: link.title.clone(),
             },
             NodeValue::Image(image) => Node::Image {
-                position,
+                span,
                 attrs,
                 url: image.url.clone(),
                 alt: image.title.clone(),
                 title: None,
             },
             NodeValue::FootnoteReference(footnote_ref) => Node::FootnoteRef {
-                position,
+                span,
                 attrs,
                 id: footnote_ref.to_string(),
             },
             NodeValue::FootnoteDefinition(footnote) => Node::FootnoteDef {
-                position,
+                span,
                 attrs,
                 children,
                 id: footnote.to_string(),

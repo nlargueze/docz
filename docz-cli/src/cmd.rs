@@ -33,7 +33,7 @@ pub fn run() -> Result<()> {
             };
 
             let service = Service::new(cfg).defaults();
-            service.build(Format::Html)?;
+            service.build(Format::Debug)?;
             eprintln!("✅ built docs");
         }
     }
