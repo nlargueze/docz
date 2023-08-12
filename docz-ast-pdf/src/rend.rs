@@ -27,6 +27,10 @@ impl PDFRenderer {
 }
 
 impl Renderer for PDFRenderer {
+    fn is_binary(&self) -> bool {
+        true
+    }
+
     fn render(&self, node: &Node) -> Result<Vec<u8>, Error> {
         // init document
         let (size_w, size_h) = self.page_size();

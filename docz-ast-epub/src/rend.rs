@@ -49,6 +49,10 @@ impl EPubRenderer {
 }
 
 impl Renderer for EPubRenderer {
+    fn is_binary(&self) -> bool {
+        true
+    }
+
     fn render(&self, node: &Node) -> Result<Vec<u8>, Error> {
         let zip = ZipLibrary::new().into_ast_result()?;
         let mut builder = EpubBuilder::new(zip).into_ast_result()?;

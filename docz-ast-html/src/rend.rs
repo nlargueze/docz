@@ -15,6 +15,10 @@ impl HTMLRenderer {
 }
 
 impl Renderer for HTMLRenderer {
+    fn is_binary(&self) -> bool {
+        false
+    }
+
     fn render(&self, node: &Node) -> Result<Vec<u8>, Error> {
         Ok(self.render_node_iter(node)?.into_string().into_bytes())
     }
@@ -388,7 +392,7 @@ impl HTMLRenderer {
                     (children)
                 }
             },
-            Node::Metadata { .. } => html! {},
+            Node::FrontMatter { .. } => html! {},
             Node::DescrList {
                 attrs: _,
                 span: _,

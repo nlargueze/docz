@@ -4,18 +4,21 @@ use crate::{Error, Node};
 
 /// AST parser
 pub trait Parser {
-    /// Parses a string to its AST
+    /// Parses a string to an AST
     fn parse(&self, value: &str) -> Result<Node, Error>;
 }
 
 /// AST processor
 pub trait Processor {
-    /// Processes a node
+    /// Processes AST nodes
     fn process(&self, nodes: Vec<Node>) -> Result<Vec<Node>, Error>;
 }
 
 /// AST renderer
 pub trait Renderer {
+    /// Checks if the output is binary
+    fn is_binary(&self) -> bool;
+
     /// Renders an AST to bytes
     fn render(&self, node: &Node) -> Result<Vec<u8>, Error>;
 
@@ -35,6 +38,10 @@ pub trait Renderer {
 pub struct DebugRenderer {}
 
 impl Renderer for DebugRenderer {
+    fn is_binary(&self) -> bool {
+        false
+    }
+
     fn render(&self, node: &Node) -> Result<Vec<u8>, Error> {
         Ok(format!("{node:#?}").into_bytes())
     }

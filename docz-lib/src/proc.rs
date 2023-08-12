@@ -32,7 +32,7 @@ impl Processor for ChapterAggregProcessor {
                         let title = children
                             .iter()
                             .filter_map(|child| {
-                                if let Node::Metadata { value, .. } = child {
+                                if let Node::FrontMatter { value, .. } = child {
                                     match parse_frontmatter::<ChapterFrontMatter>(value) {
                                         Ok(fm) => Some(fm.title),
                                         Err(err) => {
@@ -57,7 +57,7 @@ impl Processor for ChapterAggregProcessor {
                         })
                     }
                     // metadata is removed
-                    Node::Metadata { .. } => None,
+                    Node::FrontMatter { .. } => None,
                     // any other node is kept as is
                     _ => Some(node.clone()),
                 })

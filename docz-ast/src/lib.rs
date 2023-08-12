@@ -2,337 +2,116 @@
 
 mod conv;
 mod error;
+mod json;
 
 use std::collections::HashMap;
 
 pub use conv::*;
 pub use error::*;
+use serde::Serialize;
 
 /// AST node
 #[derive(Debug, Clone)]
-pub enum Node {
-    Document {
-        title: Option<String>,
-        summary: Option<String>,
-        authors: Option<Vec<String>>,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Fragment {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Chapter {
-        title: Option<String>,
-        span: Option<Span>,
-        attrs: Attrs,
-        children: Vec<Node>,
-    },
-    Section {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Heading {
-        level: u8,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    BlockQuote {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    LineBreak {
-        span: Option<Span>,
-    },
-    SoftBreak {
-        span: Option<Span>,
-    },
-    CodeBlock {
-        info: String,
-        attrs: Attrs,
-        span: Option<Span>,
-        value: String,
-    },
-    Definition {
-        id: String,
-        label: String,
-        url: String,
-        title: Option<String>,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Italic {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Html {
-        attrs: Attrs,
-        span: Option<Span>,
-        value: String,
-    },
-    Image {
-        url: String,
-        alt: String,
-        title: Option<String>,
-        attrs: Attrs,
-        span: Option<Span>,
-    },
-    ImageRef {
-        id: String,
-        label: String,
-        alt: String,
-        attrs: Attrs,
-        span: Option<Span>,
-    },
-    InlineCode {
-        attrs: Attrs,
-        span: Option<Span>,
-        value: String,
-    },
-    Link {
-        url: String,
-        title: String,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    LinkRef {
-        id: String,
-        label: String,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    List {
-        ordered: bool,
-        start: Option<usize>,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    ListItem {
-        checked: Option<bool>,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Paragraph {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Bold {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Superscript {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Text {
-        attrs: Attrs,
-        span: Option<Span>,
-        value: String,
-    },
-    ThematicBreak {
-        attrs: Attrs,
-        span: Option<Span>,
-    },
-    StrikeThrough {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    FootnoteDef {
-        id: String,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    FootnoteRef {
-        id: String,
-        attrs: Attrs,
-        span: Option<Span>,
-    },
-    Table {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    TableRow {
-        is_header: bool,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    TableCell {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Metadata {
-        attrs: Attrs,
-        span: Option<Span>,
-        value: String,
-    },
-    DescrList {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    DescrItem {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    DescrTerm {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    DescrDetail {
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
-    Comment {
-        attrs: Attrs,
-        span: Option<Span>,
-        value: String,
-    },
-    Other {
-        name: String,
-        attrs: Attrs,
-        span: Option<Span>,
-        children: Vec<Node>,
-    },
+pub struct Node {
+    pub kind: NodeKind,
+    pub attrs: HashMap<String, Option<String>>,
+    pub span: Option<Span>,
+    pub value: Option<String>,
+    pub children: Option<Vec<Node>>,
 }
 
 impl Node {
-    /// Returns an immutable reference to the children
-    pub fn children(&self) -> Option<&[Node]> {
-        match self {
-            Node::Document { children, .. } => Some(children),
-            Node::Fragment { children, .. } => Some(children),
-            Node::Chapter { children, .. } => Some(children),
-            Node::Section { children, .. } => Some(children),
-            Node::Heading { children, .. } => Some(children),
-            Node::BlockQuote { children, .. } => Some(children),
-            Node::LineBreak { .. } => None,
-            Node::CodeBlock { .. } => None,
-            Node::Definition { children, .. } => Some(children),
-            Node::Italic { children, .. } => Some(children),
-            Node::Html { .. } => None,
-            Node::Image { .. } => None,
-            Node::ImageRef { .. } => None,
-            Node::InlineCode { .. } => None,
-            Node::Link { children, .. } => Some(children),
-            Node::LinkRef { children, .. } => Some(children),
-            Node::List { children, .. } => Some(children),
-            Node::ListItem { children, .. } => Some(children),
-            Node::Paragraph { children, .. } => Some(children),
-            Node::Bold { children, .. } => Some(children),
-            Node::Text { .. } => None,
-            Node::ThematicBreak { .. } => None,
-            Node::StrikeThrough { children, .. } => Some(children),
-            Node::FootnoteDef { children, .. } => Some(children),
-            Node::FootnoteRef { .. } => None,
-            Node::Table { children, .. } => Some(children),
-            Node::TableRow { children, .. } => Some(children),
-            Node::TableCell { children, .. } => Some(children),
-            Node::Metadata { .. } => None,
-            Node::Other { children, .. } => Some(children),
-            Node::SoftBreak { .. } => None,
-            Node::Superscript { children, .. } => Some(children),
-            Node::DescrList { children, .. } => Some(children),
-            Node::DescrItem { children, .. } => Some(children),
-            Node::DescrTerm { children, .. } => Some(children),
-            Node::DescrDetail { children, .. } => Some(children),
-            Node::Comment { .. } => None,
+    /// Creates a new node
+    pub fn new(kind: NodeKind) -> Self {
+        Self {
+            kind,
+            attrs: HashMap::new(),
+            span: None,
+            children: None,
+            value: None,
         }
     }
 
-    /// Returns a mutable reference to the children
-    pub fn children_mut(&mut self) -> Option<&mut Vec<Node>> {
-        match self {
-            Node::Document { children, .. } => Some(children),
-            Node::Fragment { children, .. } => Some(children),
-            Node::Chapter { children, .. } => Some(children),
-            Node::Section { children, .. } => Some(children),
-            Node::Heading { children, .. } => Some(children),
-            Node::BlockQuote { children, .. } => Some(children),
-            Node::LineBreak { .. } => None,
-            Node::CodeBlock { .. } => None,
-            Node::Definition { children, .. } => Some(children),
-            Node::Italic { children, .. } => Some(children),
-            Node::Html { .. } => None,
-            Node::Image { .. } => None,
-            Node::ImageRef { .. } => None,
-            Node::InlineCode { .. } => None,
-            Node::Link { children, .. } => Some(children),
-            Node::LinkRef { children, .. } => Some(children),
-            Node::List { children, .. } => Some(children),
-            Node::ListItem { children, .. } => Some(children),
-            Node::Paragraph { children, .. } => Some(children),
-            Node::Bold { children, .. } => Some(children),
-            Node::Text { .. } => None,
-            Node::ThematicBreak { .. } => None,
-            Node::StrikeThrough { children, .. } => Some(children),
-            Node::FootnoteDef { children, .. } => Some(children),
-            Node::FootnoteRef { .. } => None,
-            Node::Table { children, .. } => Some(children),
-            Node::TableRow { children, .. } => Some(children),
-            Node::TableCell { children, .. } => Some(children),
-            Node::Metadata { .. } => None,
-            Node::Other { children, .. } => Some(children),
-            Node::SoftBreak { .. } => None,
-            Node::Superscript { children, .. } => Some(children),
-            Node::DescrList { children, .. } => Some(children),
-            Node::DescrItem { children, .. } => Some(children),
-            Node::DescrTerm { children, .. } => Some(children),
-            Node::DescrDetail { children, .. } => Some(children),
-            Node::Comment { .. } => None,
-        }
+    /// Sets the node kind
+    pub fn set_kind(&mut self, kind: NodeKind) -> &mut Self {
+        self.kind = kind;
+        self
     }
 
-    /// Traverses and converts a node recursively
-    ///
-    /// If `None` is returned, the node is removed from the tree.
-    pub fn visit_and_modify(&self, f: &impl Fn(&Node) -> Option<Node>) -> Option<Self> {
-        // NB: https://users.rust-lang.org/t/need-help-for-reached-the-recursion-limit-while-instantiating/86299
-        let mut new_node = f(self);
+    /// Sets the node span
+    pub fn set_span(&mut self, span: Span) -> &mut Self {
+        self.span = Some(span);
+        self
+    }
 
-        if let Some(new_node) = new_node.as_mut() {
-            if let Some(children) = new_node.children_mut() {
-                let mut new_children = vec![];
-                for child in children.iter() {
-                    if let Some(new_child) = child.visit_and_modify(f) {
-                        new_children.push(new_child);
-                    }
-                }
-                children.clear();
-                children.append(&mut new_children);
-            }
+    /// Adds the node attribute
+    pub fn add_attr(&mut self, key: &str, value: Option<&str>) -> &mut Self {
+        self.attrs
+            .insert(key.to_string(), value.map(|v| v.to_string()));
+        self
+    }
+
+    /// Sets the node value
+    pub fn set_value(&mut self, value: &str) -> &mut Self {
+        self.value = Some(value.to_string());
+        self
+    }
+
+    /// Adds a node child
+    pub fn add_child(&mut self, node: Node) -> &mut Self {
+        if let Some(children) = &mut self.children {
+            children.push(node);
+        } else {
+            self.children = Some(vec![node]);
         }
-
-        new_node
+        self
     }
 }
 
-/// Node attributes
-pub type Attrs = HashMap<String, Option<String>>;
+/// AST node kind
+#[derive(Debug, Clone)]
+pub enum NodeKind {
+    Document,
+    Fragment,
+    FrontMatter,
+    Chapter,
+    Section,
+    Heading { level: u8, id: Option<String> },
+    Paragraph,
+    Text,
+    Comment,
+    ThematicBreak,
+    LineBreak,
+    SoftBreak,
+    Italic,
+    Bold,
+    BlockQuote,
+    List { ordered: bool },
+    ListItem { index: Option<usize> },
+    Code,
+    Link { url: String, title: Option<String> },
+    Image { url: String, title: Option<String> },
+    Html,
+    Table,
+    TableRow { is_header: bool },
+    TableCell,
+    CodeBlock { info: String },
+    FootnoteRef { id: String },
+    FootnoteDef { id: String },
+    DefinitionList,
+    DefinitionItem,
+    DefinitionTerm,
+    DefinitionDetails,
+    StrikeThrough,
+    TaskItem { checked: bool },
+    Highlight,
+    SubScript,
+    SuperScript,
+    Other { name: String },
+}
 
 /// AST Span
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Span {
     /// Start line
     pub start_line: usize,

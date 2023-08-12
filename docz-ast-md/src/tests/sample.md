@@ -5,160 +5,115 @@ tags:
   - tag2
 ---
 
-# An h1 header
+# H1 header
 
-Paragraphs are separated by a blank line.
+This is paragraph 1.
 
-2nd paragraph. _Italic_, **bold**, and `monospace`. Itemized lists
-look like:
+This is paragraph 2, with some text in _italic_ some in **bold**, some `code`, some ~~deleted text~~, and some ==highlighted text==, some ~subscript~, some ^superscript^.
 
-- this one
-- that one
-- the other one
+## List 
 
-Note that --- not considering the asterisk --- the actual text
-content starts at 4-columns in.
+### Unordered list
 
-> Block quotes are
-> written like so.
->
-> They can span multiple paragraphs,
-> if you like.
+- item 1
+- item 2
+- item 3
 
-Use 3 dashes for an em-dash. Use 2 dashes for ranges (ex., "it's all
-in chapters 12--14"). Three dots ... will be converted to an ellipsis.
-Unicode is supported. ☺
+* item 1
+* item 2
+* item 3
 
-## An h2 header
+### Ordered list
 
-Here's a numbered list:
+1. item 1
+2. item 2
+5. item 3
 
-1.  first item
-2.  second item
-3.  third item
+### Nested list
 
-Note again how the actual text starts at 4 columns in (4 characters
-from the left side). Here's a code sample:
+1. First item
+2. Second item
+3. Third item
+    - Indented item
+    - Indented item
+4. Fourth item
 
-    # Let me re-iterate ...
-    for i in 1 .. 10 { do-something(i) }
+## Task list
 
-As you probably guessed, indented 4 spaces. By the way, instead of
-indenting the block, you can use delimited blocks, if you like:
+- [ ] Task 1
+- [x] Task 1
 
-```js
-function foobar() {
-    print "Welcome to flavor country!";
+## Codeblock
+
+```rust
+fn main() {
+    println!("Hello, world!");
 }
 ```
 
-(which makes copying & pasting easier). You can optionally mark the
-delimited block for Pandoc to syntax highlight it:
-
-```python
-import time
-# Quick, count to ten!
-for i in range(10):
-    # (but not *too* quick)
-    time.sleep(0.5)
-    print i
-```
-
-### An h3 header
-
-Now a nested list:
-
-1.  First, get these ingredients:
-
-    - carrots
-    - celery
-    - lentils
-
-2.  Boil some water.
-
-3.  Dump everything in the pot and follow
-    this algorithm:
-
-        find wooden spoon
-        uncover pot
-        stir
-        cover pot
-        balance wooden spoon precariously on pot handle
-        wait 10 minutes
-        goto first step (or shut off burner when done)
-
-    Do not bump wooden spoon or it will fall.
-
-Notice again how text always lines up on 4-space indents (including
-that last line which continues item 3 above).
-
-Here's a link to [a website](http://foo.bar), to a [local
-doc](local-doc.html), and to a [section heading in the current
-doc](#an-h2-header). Here's a footnote [^1].
-
-[^1]: Footnote text goes here.
-
-Tables can look like this:
-
-size material color
+## Horizontal rule
 
 ---
 
-9 leather brown
-10 hemp canvas natural
-11 glass transparent
+## Link 
 
-Table: Shoes, their sizes, and what they're made of
+[My link](https://duckduckgo.com "My link title")
 
-(The above is the caption for the table.) Pandoc also supports
-multi-line tables:
+[My Link with ref][link_1]
 
----
+[link_1]: https://en.wikipedia.org/wiki/Hobbit#Lifestyle "My link with ref"
 
-keyword text
+## Image
 
----
+![Tux, the Linux mascot](/assets/images/tux.png "My image title")
 
-red Sunsets, apples, and
-other red or reddish
-things.
+## HTML
 
-green Leaves, grass, frogs
-and other things it's
-not easy being.
+<div>
+    <p>HTML code</p>
+</div>
 
----
+## Emoji
 
-A horizontal rule follows.
+:joy:
 
----
+## Definition list
 
-Here's a definition list:
+First Term
+: This is the definition of the first term.
 
-apples
-: Good for making applesauce.
-oranges
-: Citrus!
-tomatoes
-: There's no "e" in tomatoe.
+Second Term
+: This is one definition of the second term.
+: This is another definition of the second term.
 
-Again, text is indented 4 spaces. (Put a blank line between each
-term/definition pair to spread things out more.)
+## Footnote
 
-Here's a "line block":
+Here's a simple footnote[^1] and here's a longer one[^bignote].
 
-| Line one
-| Line too
-| Line tree
+[^1]: This is the first footnote.
 
-and images can be specified like so:
+[^bignote]: Here's one with multiple paragraphs and code.
 
-![example image](example-image.jpg "An exemplary image")
+    Indent paragraphs to include them in the footnote.
 
-Inline math equations go in like so: $\omega = d\phi / dt$. Display
-math should get its own line and be put in in double-dollarsigns:
+    `{ my code }`
 
-$$I = \int \rho R^{2} dV$$
+    Add as many paragraphs as you like.
 
-And note that you can backslash-escape any punctuation characters
-which you wish to be displayed literally, ex.: \`foo\`, \*bar\*, etc.
+## Blockquote
+
+> Block line 1
+> 
+> Block line 2
+>
+>> Nested text
+> 
+> - item 1
+> - item 2
+
+## Table
+
+| Name      | Description |
+| ----------- | ----------- |
+| Row 1      | Title       |
+| Row 2   | Text        |

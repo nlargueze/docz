@@ -8,8 +8,8 @@ use crate::{Node, Span};
 pub struct Error {
     /// Error message
     pub message: String,
-    /// Optional position
-    pub position: Option<Span>,
+    /// Optional span
+    pub span: Option<Span>,
     /// Optional node
     pub node: Option<Node>,
 }
@@ -19,14 +19,14 @@ impl Error {
     pub fn new(msg: &str) -> Self {
         Self {
             message: msg.to_string(),
-            position: None,
+            span: None,
             node: None,
         }
     }
 
-    /// Assigns a position to the error
-    pub fn position(mut self, position: Span) -> Self {
-        self.position = Some(position);
+    /// Assigns a span to the error
+    pub fn position(mut self, span: Span) -> Self {
+        self.span = Some(span);
         self
     }
 
@@ -34,5 +34,23 @@ impl Error {
     pub fn node(mut self, node: Node) -> Self {
         self.node = Some(node);
         self
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Error::new(value.to_string().as_str())
+    }
+}
+
+impl From<std::fmt::Error> for Error {
+    fn from(value: std::fmt::Error) -> Self {
+        Error::new(value.to_string().as_str())
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Self {
+        Error::new(value.to_string().as_str())
     }
 }

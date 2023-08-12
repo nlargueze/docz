@@ -1,29 +1,17 @@
 //! Unit tests
 
-use docz_ast::{Attrs, Node, Parser, Renderer};
+use docz_ast::{Parser, Renderer};
 
 use super::*;
 
-static SAMPLE: &str = include_str!("tests/sample.md");
+static SAMPLE_FILE: &str = include_str!("tests/sample.md");
 
 #[test]
-fn test_parse() {
+fn test_parse_render() {
     let parser = MdParser::new();
-    let node = parser.parse(SAMPLE).unwrap();
-    eprintln!("{node:#?}");
-}
+    let node = parser.parse(SAMPLE_FILE).unwrap();
+    // eprintln!("{}", node.to_json(true).unwrap());
 
-#[test]
-#[ignore]
-fn test_render() {
-    let node = Node::Document {
-        span: None,
-        children: vec![],
-        attrs: Attrs::new(),
-        title: None,
-        summary: None,
-        authors: None,
-    };
     let renderer = MdRenderer::new();
     let file_str = renderer.render_str(&node).unwrap();
     eprintln!("{file_str}");
