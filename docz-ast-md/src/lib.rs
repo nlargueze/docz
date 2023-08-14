@@ -1,62 +1,131 @@
 //! Markdown AST for docz.
 
-mod fmatter;
-mod pars;
-mod rend;
+mod ast;
+mod error;
+mod parse;
+mod render;
 
-use docz_ast::NodeData;
-pub use fmatter::*;
-pub use pars::*;
-pub use rend::*;
+pub use error::*;
+pub use parse::*;
+pub use render::*;
+
 use serde::Serialize;
 
 #[cfg(test)]
 mod tests;
 
-/// Markdown node data
+/// Markdown node
 #[derive(Debug, Clone, Serialize)]
-pub enum Markdown {
-    Document,
-    Fragment,
-    FrontMatter { value: String },
-    Chapter,
-    Section,
-    Heading { level: u8, id: Option<String> },
-    Paragraph,
-    Text { value: String },
-    Comment { value: String },
+pub enum MdNode {
+    Document {
+        children: Vec<MdNode>,
+    },
+    FrontMatter {
+        value: String,
+    },
+    Heading {
+        level: u8,
+        id: Option<String>,
+    },
+    Paragraph {
+        children: Vec<MdNode>,
+    },
+    Text {
+        value: String,
+    },
+    Comment {
+        value: String,
+    },
     ThematicBreak,
     LineBreak,
     SoftBreak,
-    Italic,
-    Bold,
-    BlockQuote,
-    List { ordered: bool },
-    ListItem { index: Option<usize> },
-    CodeInline { value: String },
-    CodeBlock { info: String, value: String },
-    Link { url: String, title: Option<String> },
-    Image { url: String, title: Option<String> },
-    HtmlInline { value: String },
-    HtmlBlock { value: String },
-    Table { columns: Vec<MdTableAlignment> },
-    TableRow { is_header: bool },
-    TableCell,
-    FootnoteRef { id: String },
-    FootnoteDef { id: String },
-    DefinitionList,
-    DefinitionItem,
-    DefinitionTerm,
-    DefinitionDetails,
-    StrikeThrough,
-    TaskItem { checked: bool },
-    Highlight,
-    SubScript,
-    SuperScript,
-    Other { name: String },
+    Italic {
+        children: Vec<MdNode>,
+    },
+    Bold {
+        children: Vec<MdNode>,
+    },
+    BlockQuote {
+        children: Vec<MdNode>,
+    },
+    List {
+        ordered: bool,
+        children: Vec<MdNode>,
+    },
+    ListItem {
+        index: Option<usize>,
+        children: Vec<MdNode>,
+    },
+    CodeInline {
+        value: String,
+    },
+    CodeBlock {
+        info: String,
+        value: String,
+    },
+    Link {
+        url: String,
+        title: Option<String>,
+    },
+    Image {
+        url: String,
+        title: Option<String>,
+    },
+    HtmlInline {
+        value: String,
+    },
+    HtmlBlock {
+        value: String,
+    },
+    Table {
+        columns: Vec<MdTableAlignment>,
+        children: Vec<MdNode>,
+    },
+    TableRow {
+        is_header: bool,
+        children: Vec<MdNode>,
+    },
+    TableCell {
+        children: Vec<MdNode>,
+    },
+    FootnoteRef {
+        id: String,
+    },
+    FootnoteDef {
+        id: String,
+    },
+    DefinitionList {
+        children: Vec<MdNode>,
+    },
+    DefinitionItem {
+        children: Vec<MdNode>,
+    },
+    DefinitionTerm {
+        children: Vec<MdNode>,
+    },
+    DefinitionDetails {
+        children: Vec<MdNode>,
+    },
+    StrikeThrough {
+        children: Vec<MdNode>,
+    },
+    TaskItem {
+        checked: bool,
+        children: Vec<MdNode>,
+    },
+    Highlight {
+        children: Vec<MdNode>,
+    },
+    SubScript {
+        children: Vec<MdNode>,
+    },
+    SuperScript {
+        children: Vec<MdNode>,
+    },
 }
 
-impl NodeData for Markdown {}
+/// Front matter separator
+pub const FRONTMATTER_SEP: &str = "---";
 
 /// Table Alignment
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]

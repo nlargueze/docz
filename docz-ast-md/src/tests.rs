@@ -1,19 +1,18 @@
 //! Unit tests
 
-use docz_ast::{Parser, Renderer};
+// use docz_ast::{Parser, Renderer};
 
-use super::*;
+// use super::*;
+
+use crate::{MdNode, ParseOptions};
 
 static SAMPLE_FILE: &str = include_str!("tests/sample.md");
 
 #[test]
 fn test_parse_render() {
-    let parser = MdParser::new();
-    let node = parser.parse(SAMPLE_FILE.as_bytes()).unwrap();
+    let node = MdNode::parse(SAMPLE_FILE, ParseOptions::default()).unwrap();
     // eprintln!("{}", node.to_json(true).unwrap());
 
-    let renderer = MdRenderer::new();
-    let data = renderer.render(&node).unwrap();
-    let data_str = String::from_utf8(data).unwrap();
-    eprintln!("{data_str}");
+    let file_str = node.render(crate::RenderOptions::default()).unwrap();
+    eprintln!("{file_str}");
 }

@@ -34,7 +34,7 @@ impl Renderer<Pdf> for PDFRenderer {
             let curr_layer = doc.get_page(page_1).get_layer(layer_1);
 
             // add fonts
-            let font = doc.add_builtin_font(font_stream)
+            let font = doc.add_external_font_data(font_stream)
             let font = doc.get_font(font);
 
             // to bytes

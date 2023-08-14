@@ -1,10 +1,11 @@
 [workspace]
 members = [
-    "docz-cli",
-    "docz-lib",
     "docz-ast",
     "docz-ast-md",
-    "docz-ast-html",
-    "docz-ast-pdf",
-    "docz-ast-epub",
+    # "docz-ast-html",
+    # "docz-ast-pdf",
+    # "docz-ast-epub",
+    # "docz-ast-tex",
+    # "docz-cli",
+    # "docz-lib",
 ]

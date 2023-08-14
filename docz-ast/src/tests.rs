@@ -1,39 +1,43 @@
 //! Tests
 
-use crate::{Node, NodeData};
+use crate::AstNode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum TestData {
-    Document,
-    Chapter,
-    Paragraph(String),
+/// Test enum
+#[derive(Debug, Clone)]
+enum TestNode {
+    Document { children: Vec<TestNode> },
+    Paragraph { children: Vec<TestNode> },
+    Text(String),
 }
 
-impl NodeData for TestData {}
+impl AstNode for TestNode {
+    fn children(&self) -> Option<&Vec<Self>> {
+        match self {
+            TestNode::Document { children } => Some(children),
+            TestNode::Paragraph { children } => Some(children),
+            TestNode::Text(_) => None,
+        }
+    }
 
-#[test]
-fn test_tree() {
-    let node = Node::new(TestData::Document).with_child(
-        // add chapter
-        Node::new(TestData::Chapter).with_child(
-            // add paragraph
-            Node::new(TestData::Paragraph("Hello".to_string())),
-        ),
-    );
-    assert_eq!(node.data, TestData::Document);
+    fn children_mut(&mut self) -> Option<&mut Vec<Self>> {
+        match self {
+            TestNode::Document { children } => Some(children),
+            TestNode::Paragraph { children } => Some(children),
+            TestNode::Text(_) => None,
+        }
+    }
 }
 
 #[test]
 fn test_visit() {
-    let node = Node::new(TestData::Document).with_child(
-        // add chapter
-        Node::new(TestData::Chapter).with_child(
-            // add paragraph
-            Node::new(TestData::Paragraph("Hello".to_string())),
-        ),
-    );
-
-    let nb_nodes = node.nb_nodes();
-    assert_eq!(nb_nodes, 3);
+    let node = TestNode::Document {
+        children: vec![TestNode::Paragraph {
+            children: vec![TestNode::Text("Hello".to_string())],
+        }],
+    };
     eprintln!("{node:#?}");
+
+    let mut n = 0;
+    node.visit(&mut |_| n += 1);
+    assert_eq!(n, 3);
 }

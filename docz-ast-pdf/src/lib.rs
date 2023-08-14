@@ -1,5 +1,6 @@
 //! AST for PDF
 
+mod fonts;
 mod rend;
 
 #[cfg(test)]
