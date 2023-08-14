@@ -6,5 +6,4 @@ edition = "2021"
 [dependencies]
 docz-ast = { version = "0.1.0", path = "../docz-ast" }
 html_parser = "0.7.0"
-maud = "0.25.0"
 thiserror = "1.0.44"

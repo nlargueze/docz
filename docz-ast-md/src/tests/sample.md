@@ -41,7 +41,7 @@ This is paragraph 2, with some text in _italic_ some in **bold**, some `code`, s
 ## Task list
 
 - [ ] Task 1
-- [x] Task 1
+- [x] Task 2
 
 ## Codeblock
 

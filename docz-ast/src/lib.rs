@@ -4,110 +4,86 @@ mod conv;
 mod error;
 mod json;
 
-use std::collections::HashMap;
+use serde::Serialize;
+
+#[cfg(test)]
+mod tests;
 
 pub use conv::*;
 pub use error::*;
-use serde::Serialize;
 
 /// AST node
-#[derive(Debug, Clone)]
-pub struct Node {
-    pub kind: NodeKind,
-    pub attrs: HashMap<String, Option<String>>,
+#[derive(Debug, Clone, Serialize)]
+pub struct Node<T>
+where
+    T: NodeData,
+{
+    /// Node data
+    pub data: T,
+    /// Span
     pub span: Option<Span>,
-    pub value: Option<String>,
-    pub children: Option<Vec<Node>>,
+    /// Children
+    pub children: Vec<Node<T>>,
 }
 
-impl Node {
+/// Marker trait for the type of AST node
+pub trait NodeData {}
+
+impl<T> Node<T>
+where
+    T: NodeData,
+{
     /// Creates a new node
-    pub fn new(kind: NodeKind) -> Self {
+    pub fn new(data: T) -> Self {
         Self {
-            kind,
-            attrs: HashMap::new(),
+            data,
             span: None,
-            children: None,
-            value: None,
+            children: vec![],
         }
     }
 
-    /// Sets the node kind
-    pub fn set_kind(&mut self, kind: NodeKind) -> &mut Self {
-        self.kind = kind;
-        self
-    }
-
-    /// Sets the node span
-    pub fn set_span(&mut self, span: Span) -> &mut Self {
+    /// Adds a span
+    pub fn with_span(mut self, span: Span) -> Self {
         self.span = Some(span);
         self
     }
 
-    /// Adds the node attribute
-    pub fn add_attr(&mut self, key: &str, value: Option<&str>) -> &mut Self {
-        self.attrs
-            .insert(key.to_string(), value.map(|v| v.to_string()));
+    /// Adds a child
+    pub fn with_child(mut self, child: Node<T>) -> Self {
+        self.children.push(child);
         self
     }
 
-    /// Sets the node value
-    pub fn set_value(&mut self, value: &str) -> &mut Self {
-        self.value = Some(value.to_string());
+    /// Adds children
+    pub fn with_children(mut self, children: Vec<Node<T>>) -> Self {
+        self.children = children;
         self
     }
 
-    /// Adds a node child
-    pub fn add_child(&mut self, node: Node) -> &mut Self {
-        if let Some(children) = &mut self.children {
-            children.push(node);
-        } else {
-            self.children = Some(vec![node]);
+    /// Visits a node recursively
+    pub fn visit(&self, f: &mut impl FnMut(&Node<T>)) {
+        f(self);
+        for child in self.children.iter() {
+            child.visit(f);
         }
-        self
     }
-}
 
-/// AST node kind
-#[derive(Debug, Clone)]
-pub enum NodeKind {
-    Document,
-    Fragment,
-    FrontMatter,
-    Chapter,
-    Section,
-    Heading { level: u8, id: Option<String> },
-    Paragraph,
-    Text,
-    Comment,
-    ThematicBreak,
-    LineBreak,
-    SoftBreak,
-    Italic,
-    Bold,
-    BlockQuote,
-    List { ordered: bool },
-    ListItem { index: Option<usize> },
-    Code,
-    Link { url: String, title: Option<String> },
-    Image { url: String, title: Option<String> },
-    Html,
-    Table,
-    TableRow { is_header: bool },
-    TableCell,
-    CodeBlock { info: String },
-    FootnoteRef { id: String },
-    FootnoteDef { id: String },
-    DefinitionList,
-    DefinitionItem,
-    DefinitionTerm,
-    DefinitionDetails,
-    StrikeThrough,
-    TaskItem { checked: bool },
-    Highlight,
-    SubScript,
-    SuperScript,
-    Other { name: String },
+    /// Visits a node recursively mutably
+    pub fn visit_mut(&mut self, f: &mut impl FnMut(&mut Node<T>)) {
+        f(self);
+        for child in self.children.iter_mut() {
+            child.visit_mut(f);
+        }
+    }
+
+    /// Returns the number of nodes
+    pub fn nb_nodes(&self) -> usize {
+        let mut nb_nodes = 0;
+        self.visit(&mut |_node| {
+            nb_nodes += 1;
+        });
+        nb_nodes
+    }
 }
 
 /// AST Span

@@ -1,48 +1,31 @@
 //! Conversion traits
 
-use crate::{Error, Node};
+use crate::{Error, Node, NodeData};
 
-/// AST parser
-pub trait Parser {
-    /// Parses a string to an AST
-    fn parse(&self, value: &str) -> Result<Node, Error>;
+/// AST converter
+pub trait Converter<T, U>
+where
+    T: NodeData,
+    U: NodeData,
+{
+    /// Converts from an AST to another
+    fn convert(&self, node: Node<T>) -> Result<Node<U>, Error>;
 }
 
-/// AST processor
-pub trait Processor {
-    /// Processes AST nodes
-    fn process(&self, nodes: Vec<Node>) -> Result<Vec<Node>, Error>;
+/// AST parser
+pub trait Parser<T>
+where
+    T: NodeData,
+{
+    /// Parses to an AST
+    fn parse(&self, value: &[u8]) -> Result<Node<T>, Error>;
 }
 
 /// AST renderer
-pub trait Renderer {
-    /// Checks if the output is binary
-    fn is_binary(&self) -> bool;
-
+pub trait Renderer<T>
+where
+    T: NodeData,
+{
     /// Renders an AST to bytes
-    fn render(&self, node: &Node) -> Result<Vec<u8>, Error>;
-
-    /// Renders an AST to string
-    fn render_str(&self, node: &Node) -> Result<String, Error> {
-        let bytes = self.render(node)?;
-        let node_str =
-            String::from_utf8(bytes).map_err(|err| Error::new(err.to_string().as_str()))?;
-        Ok(node_str)
-    }
-}
-
-/// Debug renderer
-///
-/// This renderer prints the AST in a debug format
-#[derive(Debug, Default)]
-pub struct DebugRenderer {}
-
-impl Renderer for DebugRenderer {
-    fn is_binary(&self) -> bool {
-        false
-    }
-
-    fn render(&self, node: &Node) -> Result<Vec<u8>, Error> {
-        Ok(format!("{node:#?}").into_bytes())
-    }
+    fn render(&self, node: &Node<T>) -> Result<Vec<u8>, Error>;
 }

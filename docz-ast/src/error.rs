@@ -1,17 +1,11 @@
 //! Error
 
-use crate::{Node, Span};
-
 /// AST error
 #[derive(Debug, thiserror::Error)]
 #[error("{message}")]
 pub struct Error {
     /// Error message
     pub message: String,
-    /// Optional span
-    pub span: Option<Span>,
-    /// Optional node
-    pub node: Option<Node>,
 }
 
 impl Error {
@@ -19,21 +13,7 @@ impl Error {
     pub fn new(msg: &str) -> Self {
         Self {
             message: msg.to_string(),
-            span: None,
-            node: None,
         }
-    }
-
-    /// Assigns a span to the error
-    pub fn position(mut self, span: Span) -> Self {
-        self.span = Some(span);
-        self
-    }
-
-    /// Assigns a node to the error
-    pub fn node(mut self, node: Node) -> Self {
-        self.node = Some(node);
-        self
     }
 }
 

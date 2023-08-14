@@ -1,39 +1,19 @@
 //! Tests
 
-use docz_ast::{Attrs, Node, Parser, Renderer};
+use docz_ast::{Parser, Renderer};
 
 use super::*;
 
 static SAMPLE: &str = include_str!("tests/sample.html");
 
 #[test]
-#[ignore]
-fn test_parse() {
+fn test_parse_render() {
     let parser = HTMLParser::new();
-    let node = parser.parse(SAMPLE).unwrap();
-    eprintln!("{node:#?}");
-}
-
-#[test]
-fn test_render() {
-    let node = Node::Document {
-        span: None,
-        attrs: Attrs::default(),
-        title: Some("Title".to_string()),
-        summary: None,
-        authors: None,
-        children: vec![Node::Paragraph {
-            span: None,
-            attrs: Attrs::default(),
-            children: vec![Node::Text {
-                span: None,
-                attrs: Attrs::default(),
-                value: "Hello".to_string(),
-            }],
-        }],
-    };
+    let node = parser.parse(SAMPLE.as_bytes()).unwrap();
+    // eprintln!("{node:#?}");
 
     let renderer = HTMLRenderer::new();
-    let html = renderer.render_str(&node).unwrap();
-    eprintln!("{html}");
+    let html = renderer.render(&node).unwrap();
+    let html_str = String::from_utf8(html).unwrap();
+    eprintln!("{html_str}");
 }
