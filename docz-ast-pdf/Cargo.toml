@@ -5,4 +5,6 @@ edition = "2021"
 
 [dependencies]
 docz-ast = { version = "0.1.0", path = "../docz-ast" }
-printpdf = "0.5.3"
+printpdf = { version = "0.5.3", features = ["image"] }
+textwrap = "0.16.0"
+thiserror = "1.0.44"

@@ -1,4 +1,4 @@
 //! Fonts
 
 /// Poppins Regular
-const POPPINS_REGULAR: &[u8] = include_bytes!("fonts/Poppins-Bold.ttf");
+pub const POPPINS_REGULAR: &[u8] = include_bytes!("fonts/Poppins-Regular.ttf");

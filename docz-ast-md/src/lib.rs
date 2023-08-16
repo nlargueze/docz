@@ -5,6 +5,7 @@ mod error;
 mod parse;
 mod render;
 
+pub use ast::*;
 pub use error::*;
 pub use parse::*;
 pub use render::*;
@@ -26,6 +27,7 @@ pub enum MdNode {
     Heading {
         level: u8,
         id: Option<String>,
+        children: Vec<MdNode>,
     },
     Paragraph {
         children: Vec<MdNode>,

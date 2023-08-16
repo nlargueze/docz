@@ -109,6 +109,7 @@ fn parse_node_iter<'a>(comrak_node: &'a AstNode<'a>, opts: &ParseOptions) -> Res
         NodeValue::Heading(heading) => MdNode::Heading {
             level: heading.level,
             id: None,
+            children,
         },
         NodeValue::ThematicBreak => MdNode::ThematicBreak,
         NodeValue::Table(table) => MdNode::Table {

@@ -2,7 +2,7 @@
 name = "docz-lib"
 version = "0.1.0"
 edition = "2021"
-description = "Doc generation library for CLI"
+description = "Doc generation library"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/docz-lib"
 repository = "https://github.com/nlargueze/docz.git"
@@ -19,3 +19,12 @@ docz-ast = { version = "0.1.0", path = "../docz-ast" }
 docz-ast-md = { version = "0.1.0", path = "../docz-ast-md" }
 docz-ast-html = { version = "0.1.0", path = "../docz-ast-html" }
 fs_extra = "1.3.0"
+comrak = { version = "0.18.0", features = ["emojis"] }
+handlebars = "4.3.7"
+notify = "6.0.1"
+salvo = { version = "0.50.5", features = ["serve-static"] }
+open = "5.0.0"
+
+[dev-dependencies]
+env_logger = "0.10.0"
+tokio = { version = "1.32.0", features = ["full"] }

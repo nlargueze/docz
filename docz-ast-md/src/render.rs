@@ -22,7 +22,7 @@ impl MdNode {
     /// Renders to MdNode
     pub fn render(&self, opts: RenderOptions) -> Result<String, Error> {
         let arena = Arena::new();
-        let md_node = render_node_iter(self, &arena, &opts);
+        let md_node = convert_to_comrak_node(self, &arena, &opts);
 
         let comrak_opts = ComrakOptions {
             extension: ComrakExtensionOptions {
@@ -66,7 +66,8 @@ impl MdNode {
 }
 
 /// Converts an AST node to a MdNode node
-fn render_node_iter<'a>(
+#[allow(clippy::only_used_in_recursion)]
+fn convert_to_comrak_node<'a>(
     node: &MdNode,
     arena: &'a Arena<AstNode<'a>>,
     opts: &RenderOptions,
@@ -82,10 +83,17 @@ fn render_node_iter<'a>(
             let fmatter = format!("{}\n{}\n{}\n\n", FRONTMATTER_SEP, value, FRONTMATTER_SEP);
             NodeValue::FrontMatter(fmatter)
         }
-        MdNode::Heading { level, id: _ } => NodeValue::Heading(NodeHeading {
-            level: *level,
-            setext: false,
-        }),
+        MdNode::Heading {
+            level,
+            id: _,
+            children,
+        } => {
+            children_ref = Some(children);
+            NodeValue::Heading(NodeHeading {
+                level: *level,
+                setext: false,
+            })
+        }
         MdNode::Paragraph { children } => {
             children_ref = Some(children);
             NodeValue::Paragraph
@@ -248,7 +256,7 @@ fn render_node_iter<'a>(
 
     if let Some(children) = children_ref {
         for child in children {
-            if let Some(md_child) = render_node_iter(child, arena, opts) {
+            if let Some(md_child) = convert_to_comrak_node(child, arena, opts) {
                 md_node.append(md_child);
             }
         }

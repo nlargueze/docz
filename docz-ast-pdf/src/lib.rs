@@ -1,19 +1,22 @@
 //! AST for PDF
 
+mod ast;
+mod error;
 mod fonts;
-mod rend;
+mod render;
 
 #[cfg(test)]
 mod tests;
 
-use docz_ast::NodeData;
-pub use rend::*;
+pub use ast::*;
+pub use error::*;
+pub use render::*;
 
-/// PDF
+/// PDF node
 #[derive(Debug, Clone)]
-pub enum Pdf {
+pub enum PdfNode {
     Document {
-        /// Paper size (size in mm)
+        /// Paper size (width + height in mm)
         size: Option<(f64, f64)>,
         /// Title
         title: String,
@@ -21,32 +24,33 @@ pub enum Pdf {
         authors: Option<Vec<String>>,
         /// Abstract
         summary: Option<String>,
+        /// Children
+        children: Vec<PdfNode>,
     },
+    /// Section (chapter, subsection, etc.)
     Section {
         /// Section level
         level: usize,
-        /// ToC index
-        toc_index: Option<String>,
-        /// Section title
+        /// Index (eg. 1, 1.2, etc...)
+        index: Option<String>,
+        /// Title
         title: Option<String>,
+        /// Children
+        children: Vec<PdfNode>,
     },
-    Paragraph,
+    Paragraph {
+        /// Children
+        children: Vec<PdfNode>,
+    },
     Text {
         value: String,
     },
-    Formula {
-        value: String,
-    },
     Image {
-        //
+        url: String,
     },
-    Table {
-        //
-    },
-    Reference {
-        id: String,
+    /// Latex formula
+    Formula {
+        inline: bool,
         value: String,
     },
 }
-
-impl NodeData for Pdf {}

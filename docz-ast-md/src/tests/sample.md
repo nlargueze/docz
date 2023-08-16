@@ -11,6 +11,12 @@ This is paragraph 1.
 
 This is paragraph 2, with some text in _italic_ some in **bold**, some `code`, some ~~deleted text~~, and some ==highlighted text==, some ~subscript~, some ^superscript^.
 
+## Latex 
+
+An inline equation $\int_{-\infty}^\infty g(x) dx$
+
+A block equation $$\int_{-\infty}^\infty g(x) dx$$
+
 ## List 
 
 ### Unordered list

@@ -1,5 +1,5 @@
 [env]
-RUST_LOG = "trace"
+RUST_LOG = "trace,mio=off"
 
 [alias]
 docz = "run --bin docz --"

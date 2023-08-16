@@ -1,20 +1,29 @@
 //! HTML AST for docz
 
-mod pars;
-mod rend;
+mod ast;
+mod error;
+mod parse;
+mod render;
 
 use std::collections::HashMap;
 
-use docz_ast::NodeData;
-pub use pars::*;
-pub use rend::*;
+pub use ast::*;
+pub use error::*;
+pub use parse::*;
+pub use render::*;
 
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug)]
-pub enum Html {
-    Fragment,
+/// HTML node
+#[derive(Debug, Clone)]
+pub enum HtmlNode {
+    Document {
+        children: Vec<HtmlNode>,
+    },
+    Fragment {
+        children: Vec<HtmlNode>,
+    },
     Text {
         value: String,
     },
@@ -27,7 +36,6 @@ pub enum Html {
         id: Option<String>,
         attrs: HashMap<String, Option<String>>,
         classes: Vec<String>,
+        children: Vec<HtmlNode>,
     },
 }
-
-impl NodeData for Html {}
