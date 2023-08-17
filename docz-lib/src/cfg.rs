@@ -57,6 +57,11 @@ impl Config {
         self.root_dir.join(Self::FILE_NAME)
     }
 
+    /// Checks if the file exists
+    pub fn file_exists(&self) -> bool {
+        self.file_path().exists()
+    }
+
     /// Returns the source directory
     pub fn src_dir(&self) -> PathBuf {
         self.root_dir.join(&self.file.src.src_dir)

@@ -2,4 +2,4 @@
 RUST_LOG = "off,docz_lib=trace, docz_lib::rend=off"
 
 [alias]
-docz = "run --bin docz --"
+docz = "run --bin docz -p docz --"

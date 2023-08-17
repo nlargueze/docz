@@ -2,34 +2,28 @@
 
 use std::sync::Once;
 
-use docz_lib::{
-    rend::{DebugRenderer, HTMLRenderer},
-    Service,
-};
+use docz_lib::Service;
 
-static INIT: Once = Once::new();
+static INIT_ONCE: Once = Once::new();
 
-/// INitializes the tests
-fn init_tests() {
-    INIT.call_once(|| {
+/// Initializes the service
+fn init_service() -> Service {
+    INIT_ONCE.call_once(|| {
         env_logger::init();
     });
+
+    Service::builder()
+        // NB: current_dir() points to the root of the crate (tests only)
+        .root_dir("./tests/build")
+        .dbg_renderer()
+        .html_renderer()
+        .unwrap()
+        .build()
+        .unwrap()
 }
 
 #[test]
 fn test_build() {
-    init_tests();
-
-    let dbg_renderer = DebugRenderer::new();
-    let html_renderer = HTMLRenderer::new().unwrap();
-
-    let service = Service::builder()
-        .root_dir("../docz-demo")
-        .renderer(dbg_renderer)
-        .renderer(html_renderer)
-        .build()
-        .unwrap();
-    // service.init_root_dir().unwrap();
-
+    let service = init_service();
     service.build().unwrap();
 }

@@ -11,23 +11,32 @@ use crate::{
 };
 
 impl Service {
-    /// Builds the documentation
-    pub fn build(&self) -> Result<()> {
-        let mut doc = Document::default();
-        self.extract_src(&mut doc)?;
-
-        // reste build folder
+    /// Removes the build folder
+    pub fn remove_build_dir(&self) -> Result<()> {
         let build_dir = self.config.build_dir();
         if build_dir.exists() {
-            fs::remove_dir_all(&build_dir)?;
+            fs::remove_dir_all(build_dir)?
         }
+        Ok(())
+    }
+
+    /// Builds the documentation
+    pub fn build(&self) -> Result<()> {
+        let doc = self.extract_src()?;
+
+        // recreate the build dir
+        let build_dir = self.config.build_dir();
+        self.remove_build_dir()?;
         fs::create_dir(&build_dir)?;
 
         for id in self.config.output_ids() {
             if let Some(renderer) = self.renderers.get(id) {
                 renderer.render(&self.config, &doc)?;
             } else {
-                return Err(anyhow!("Renderer not found: {}", id));
+                return Err(anyhow!(
+                    "Invalid output type ({}). Check the config file or add a renderer",
+                    id
+                ));
             };
         }
 
@@ -35,11 +44,12 @@ impl Service {
     }
 
     /// Extracts the source files and populates the [Document]
-    fn extract_src(&self, doc: &mut Document) -> Result<()> {
+    fn extract_src(&self) -> Result<Document> {
+        let mut doc = Document::default();
         let src_dir = self.config.src_dir();
         let sections = self.extract_src_section_iter(&src_dir, true)?;
         doc.sections = sections;
-        Ok(())
+        Ok(doc)
     }
 
     /// Extracts the sections for a dir recursively

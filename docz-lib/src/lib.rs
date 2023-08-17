@@ -32,11 +32,17 @@ impl Service {
         ServiceBuilder::default()
     }
 
+    /// Checks if the root_dir is initialized
+    pub fn is_root_dir_init(root_dir: impl AsRef<Path>) -> bool {
+        let mut config = Config::default();
+        config.set_root_dir(root_dir.as_ref());
+        config.file_exists()
+    }
+
     /// Initializes the directory
-    pub fn init_root_dir(root_dir: &Path) -> Result<()> {
-        let service = Self::default();
-        let mut config = service.config;
-        config.set_root_dir(root_dir);
+    pub fn init_root_dir(root_dir: impl AsRef<Path>) -> Result<()> {
+        let mut config = Config::default();
+        config.set_root_dir(root_dir.as_ref());
 
         // config file
         let config_file = config.file_path();
@@ -99,22 +105,21 @@ impl ServiceBuilder {
     }
 
     /// Adds a renderer
-    pub fn renderer(mut self, renderer: impl Renderer + Send + Sync + 'static) -> Self {
-        let id = renderer.id().to_owned();
-        self.renderers.insert(id, Box::new(renderer));
+    pub fn renderer(mut self, id: &str, renderer: impl Renderer + Send + Sync + 'static) -> Self {
+        self.renderers.insert(id.into(), Box::new(renderer));
         self
     }
 
     /// Adds the debug renderer
     pub fn dbg_renderer(self) -> Self {
         let dbg_renderer = DebugRenderer::new();
-        self.renderer(dbg_renderer)
+        self.renderer("debug", dbg_renderer)
     }
 
     /// Adds the HTML renderer
     pub fn html_renderer(self) -> Result<Self> {
         let html_renderer = HTMLRenderer::new()?;
-        Ok(self.renderer(html_renderer))
+        Ok(self.renderer("html", html_renderer))
     }
 
     /// Builds the service

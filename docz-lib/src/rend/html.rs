@@ -16,6 +16,9 @@ use crate::{
 
 use super::Renderer;
 
+/// SSE JS file
+pub const SSE_JS: &[u8] = include_bytes!("html/sse.js");
+
 /// Renderer for HTML docs
 #[derive(Debug)]
 pub struct HTMLRenderer {
@@ -30,8 +33,8 @@ pub struct HTMLTemplate {
     pub id: &'static str,
     /// Template file
     pub file: &'static str,
-    /// Other files
-    pub other_files: &'static [(&'static str, &'static [u8])],
+    /// Static files
+    pub static_files: &'static [(&'static str, &'static [u8])],
 }
 
 /// HTML data
@@ -51,7 +54,7 @@ struct HTMLDataChapter {
 static DEFAULT_TEMPLATE: HTMLTemplate = HTMLTemplate {
     id: "_default_",
     file: include_str!("html/index.hbs"),
-    other_files: &[("sse.js", include_bytes!("html/sse.js"))],
+    static_files: &[("sse.js", SSE_JS)],
 };
 impl HTMLRenderer {
     /// Creates a new debug renderer
@@ -71,25 +74,20 @@ impl HTMLRenderer {
 }
 
 impl Renderer for HTMLRenderer {
-    fn id(&self) -> &'static str {
-        "html"
-    }
-
     fn render(&self, cfg: &Config, doc: &crate::doc::Document) -> Result<()> {
         debug!("Renderer (html)");
 
         let data = self.extract_data(cfg, doc)?;
         debug!("{data:#?}");
-
-        let index_data = self.registry.render(self.template.id, &data)?;
+        let index_file_bytes = self.registry.render(self.template.id, &data)?;
 
         let build_dir = cfg.build_dir().join("html");
         fs::create_dir_all(&build_dir)?;
 
         let index_file = build_dir.join("index.html");
-        fs::write(index_file, index_data)?;
+        fs::write(index_file, index_file_bytes)?;
 
-        for (file_name, file_data) in self.template.other_files {
+        for (file_name, file_data) in self.template.static_files {
             let file = build_dir.join(file_name);
             fs::write(&file, file_data)?;
         }

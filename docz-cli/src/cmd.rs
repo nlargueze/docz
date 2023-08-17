@@ -33,6 +33,8 @@ pub enum Command {
     Init {},
     /// Builds the doc
     Build {},
+    /// Cleans the build folder
+    Clean {},
     /// Servces the doc
     Serve {
         #[arg(long, short, default_value_t = 3000)]
@@ -57,18 +59,21 @@ pub async fn run() -> Result<()> {
         None => env::current_dir().unwrap(),
     };
 
-    // init service
-
     eprintln!();
     match args.command {
         Command::Init {} => {
             Service::init_root_dir(&root_dir)?;
-            eprintln!("✅ initialized repo");
+            eprintln!("✅ Initialized repo");
+        }
+        Command::Clean {} => {
+            let service = init_service(&root_dir)?;
+            service.remove_build_dir()?;
+            eprintln!("✅ Cleaned the build folder");
         }
         Command::Build {} => {
             let service = init_service(&root_dir)?;
             service.build()?;
-            eprintln!("✅ built docs");
+            eprintln!("✅ Built the docs");
         }
         Command::Serve { port, watch, open } => {
             let service = init_service(&root_dir)?;

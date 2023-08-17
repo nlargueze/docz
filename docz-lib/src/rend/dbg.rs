@@ -20,10 +20,6 @@ impl DebugRenderer {
 }
 
 impl Renderer for DebugRenderer {
-    fn id(&self) -> &'static str {
-        "debug"
-    }
-
     fn render(&self, cfg: &Config, doc: &crate::doc::Document) -> Result<()> {
         debug!("Renderer (debug)");
         let doc_str = format!("{doc:#?}");
