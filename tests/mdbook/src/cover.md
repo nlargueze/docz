@@ -1,5 +1,0 @@
-# Cover
-
-## Introduction
-
-Introduction

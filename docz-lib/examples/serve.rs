@@ -1,22 +1,16 @@
 //! Serves assets
 
-use docz_lib::{
-    rend::{DebugRenderer, HTMLRenderer},
-    serve::ServeOptions,
-    Service,
-};
+use docz_lib::{serve::ServeOptions, Service};
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
 
-    let dbg_renderer = DebugRenderer::new();
-    let html_renderer = HTMLRenderer::new().unwrap();
-
     let service = Service::builder()
-        .root_dir("./tests_root")
-        .renderer(dbg_renderer)
-        .renderer(html_renderer)
+        .root_dir("../docz-demo")
+        .dbg_renderer()
+        .html_renderer()
+        .unwrap()
         .build()
         .unwrap();
 
@@ -26,5 +20,6 @@ async fn main() {
             open: true,
             watch: true,
         })
-        .await;
+        .await
+        .unwrap();
 }

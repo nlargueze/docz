@@ -1,7 +1,0 @@
-[package]
-name = "docz-ast"
-version = "0.1.0"
-edition = "2021"
-description = "Generic AST for docz"
-
-[dependencies]

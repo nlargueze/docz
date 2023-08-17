@@ -1,0 +1,15 @@
+[doc]
+title = "Doc title"
+description = "Doc description"
+authors = []
+
+[src]
+src_dir = "src"
+assets_dir = "_assets"
+
+[build]
+build_dir = "build"
+
+[output.debug]
+
+[output.html]

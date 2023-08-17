@@ -11,7 +11,7 @@ use anyhow::Result;
 use crate::{cfg::Config, doc::Document};
 
 /// Renderer
-pub trait Renderer {
+pub trait Renderer: Send {
     /// Returns the renderer ID
     fn id(&self) -> &'static str;
 

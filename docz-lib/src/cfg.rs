@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// Service configuration
@@ -75,7 +75,7 @@ impl Config {
     /// Loads the configuration from a file
     pub(crate) fn load_file(&mut self) -> Result<()> {
         let path = self.file_path();
-        let data = fs::read(path)?;
+        let data = fs::read(path).context("config file not found")?;
         let data_str = String::from_utf8(data)?;
         let file = toml::from_str::<ConfigFile>(&data_str)?;
         self.file = file;
@@ -111,7 +111,7 @@ impl Config {
 }
 
 /// Configuration file
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigFile {
     /// Documentation configuration
     pub doc: DocConfig,
@@ -121,6 +121,21 @@ pub struct ConfigFile {
     pub build: BuildConfig,
     /// Output config
     pub output: HashMap<String, toml::Value>,
+}
+
+impl Default for ConfigFile {
+    fn default() -> Self {
+        let mut output = HashMap::new();
+        output.insert("html".to_string(), toml::Value::Table(toml::Table::new()));
+        output.insert("debug".to_string(), toml::Value::Table(toml::Table::new()));
+
+        Self {
+            doc: DocConfig::default(),
+            src: SourceConfig::default(),
+            build: BuildConfig::default(),
+            output,
+        }
+    }
 }
 
 /// Documentation configuration

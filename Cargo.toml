@@ -1,11 +1,2 @@
 [workspace]
-members = [
-    # "docz-ast",
-    # "docz-ast-md",
-    # "docz-ast-html",
-    # "docz-ast-pdf",
-    # "docz-ast-epub",
-    # "docz-cli",
-    "docz-lib",
-    # "tests/mdbook-article",
-]
+members = ["docz-cli", "docz-lib"]

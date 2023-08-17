@@ -1,12 +1,11 @@
 //! Test build
 
-use std::{sync::Once, thread};
+use std::sync::Once;
 
 use docz_lib::{
-    rend::{dbg::DebugRenderer, html::HTMLRenderer},
+    rend::{DebugRenderer, HTMLRenderer},
     Service,
 };
-use log::{info, warn};
 
 static INIT: Once = Once::new();
 
@@ -25,7 +24,7 @@ fn test_build() {
     let html_renderer = HTMLRenderer::new().unwrap();
 
     let service = Service::builder()
-        .root_dir("./tests_root")
+        .root_dir("../docz-demo")
         .renderer(dbg_renderer)
         .renderer(html_renderer)
         .build()
@@ -33,8 +32,4 @@ fn test_build() {
     // service.init_root_dir().unwrap();
 
     service.build().unwrap();
-
-    // service.watch_src(|event| {
-    //     info!("Event: {:?}", event);
-    // });
 }

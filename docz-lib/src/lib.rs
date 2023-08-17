@@ -5,18 +5,17 @@ pub mod cfg;
 pub mod doc;
 pub mod rend;
 pub mod serve;
-pub mod watch;
 
 use std::{
     collections::HashMap,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
 };
 
 use anyhow::{Error, Result};
 
 use cfg::Config;
-use rend::Renderer;
+use rend::{DebugRenderer, HTMLRenderer, Renderer};
 
 /// Documentation service
 #[derive(Default)]
@@ -24,40 +23,48 @@ pub struct Service {
     /// Config
     config: Config,
     /// Renderers
-    renderers: HashMap<String, Box<dyn Renderer>>,
+    renderers: HashMap<String, Box<dyn Renderer + Send + Sync>>,
 }
 
 impl Service {
-    /// Creates a service builder
+    /// Creates a service
     pub fn builder() -> ServiceBuilder {
         ServiceBuilder::default()
     }
 
     /// Initializes the directory
-    pub fn init_root_dir(&self) -> Result<()> {
+    pub fn init_root_dir(root_dir: &Path) -> Result<()> {
+        let service = Self::default();
+        let mut config = service.config;
+        config.set_root_dir(root_dir);
+
         // config file
-        let config_file = self.config.file_path();
+        let config_file = config.file_path();
         if config_file.exists() {
             return Err(Error::msg("config file already exists"));
         }
-        self.config.save_to_file()?;
-
-        // src dir
-        let src_dir = self.config.src_dir();
-        if src_dir.exists() {
-            return Err(anyhow::anyhow!("src directory already exists"));
-        }
-        fs::create_dir(src_dir)?;
+        config.save_to_file()?;
 
         // .gitignore
-        let gitignore_file = self.config.root_dir().join(PathBuf::from(".gitignore"));
+        let gitignore_file = config.root_dir().join(PathBuf::from(".gitignore"));
         if gitignore_file.exists() {
             return Err(anyhow::anyhow!(".gitignore already exists"));
         }
         fs::write(gitignore_file, "build")?;
 
+        // src dir
+        let src_dir = config.src_dir();
+        if src_dir.exists() {
+            return Err(anyhow::anyhow!("src directory already exists"));
+        }
+        fs::create_dir(&src_dir)?;
+
+        // dummy file
+        let dummy_file = src_dir.join(PathBuf::from("01-chapter_1.md"));
+        fs::write(dummy_file, "# Chapter 1\n")?;
+
         // assets dir
-        let assets_dir = self.config.assets_dir();
+        let assets_dir = config.assets_dir();
         if assets_dir.exists() {
             return Err(anyhow::anyhow!("assets directory already exists"));
         }
@@ -68,16 +75,24 @@ impl Service {
 }
 
 /// Service Builder
-#[derive(Default)]
 pub struct ServiceBuilder {
     /// Root dir
     root_dir: PathBuf,
     /// Renderers
-    renderers: HashMap<String, Box<dyn Renderer>>,
+    renderers: HashMap<String, Box<dyn Renderer + Send + Sync>>,
+}
+
+impl Default for ServiceBuilder {
+    fn default() -> Self {
+        Self {
+            root_dir: env::current_dir().unwrap(),
+            renderers: HashMap::new(),
+        }
+    }
 }
 
 impl ServiceBuilder {
-    /// Sets the root dit
+    /// Sets the root dir
     pub fn root_dir(mut self, root_dir: impl AsRef<Path>) -> Self {
         self.root_dir = root_dir.as_ref().to_owned();
         self
@@ -88,6 +103,18 @@ impl ServiceBuilder {
         let id = renderer.id().to_owned();
         self.renderers.insert(id, Box::new(renderer));
         self
+    }
+
+    /// Adds the debug renderer
+    pub fn dbg_renderer(self) -> Self {
+        let dbg_renderer = DebugRenderer::new();
+        self.renderer(dbg_renderer)
+    }
+
+    /// Adds the HTML renderer
+    pub fn html_renderer(self) -> Result<Self> {
+        let html_renderer = HTMLRenderer::new()?;
+        Ok(self.renderer(html_renderer))
     }
 
     /// Builds the service

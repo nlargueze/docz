@@ -15,16 +15,15 @@ anyhow = "1.0.72"
 log = "0.4.19"
 serde = { version = "1.0.182", features = ["derive"] }
 toml = "0.7.6"
-docz-ast = { version = "0.1.0", path = "../docz-ast" }
-docz-ast-md = { version = "0.1.0", path = "../docz-ast-md" }
-docz-ast-html = { version = "0.1.0", path = "../docz-ast-html" }
 fs_extra = "1.3.0"
 comrak = { version = "0.18.0", features = ["emojis"] }
 handlebars = "4.3.7"
 notify = "6.0.1"
-salvo = { version = "0.50.5", features = ["serve-static"] }
+salvo = { version = "0.50.5", features = ["serve-static", "affix", "sse"] }
 open = "5.0.0"
+tokio = { version = "1.32.0", features = ["full"] }
+async-stream = "0.3.5"
+futures-core = "0.3.28"
 
 [dev-dependencies]
 env_logger = "0.10.0"
-tokio = { version = "1.32.0", features = ["full"] }

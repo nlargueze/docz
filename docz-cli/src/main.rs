@@ -1,14 +1,12 @@
 use colored::Colorize;
 
-mod args;
 mod cmd;
 
-fn main() {
-    match cmd::run() {
-        Ok(_) => {}
-        Err(err) => {
-            let msg = format!("❌ {}", err).bright_red();
-            eprintln!("{msg}")
-        }
+#[tokio::main]
+async fn main() {
+    eprintln!();
+    if let Err(err) = cmd::run().await {
+        let msg = format!("❌ {}", err).bright_red();
+        eprintln!("{msg}")
     }
 }

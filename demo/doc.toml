@@ -1,8 +1,0 @@
-[doc]
-title = "Title"
-description = "My description"
-authors = ["nick"]
-files = ["00-intro.md"]
-
-[build]
-dir = "build"

@@ -16,35 +16,56 @@ use crate::{
 
 use super::Renderer;
 
-/// HTML template
-const HTML_TEMPLATE_STR: &str = include_str!("templates/html.hbs");
-
 /// Renderer for HTML docs
 #[derive(Debug)]
 pub struct HTMLRenderer {
     registry: Handlebars<'static>,
-    template_id: String,
+    template: &'static HTMLTemplate,
 }
 
-impl HTMLRenderer {
-    /// Default template ID
-    const DEFAULT_TEMPLATE_ID: &str = "_default_";
+/// HTML Template
+#[derive(Debug)]
+pub struct HTMLTemplate {
+    /// Template ID
+    pub id: &'static str,
+    /// Template file
+    pub file: &'static str,
+    /// Other files
+    pub other_files: &'static [(&'static str, &'static [u8])],
+}
 
+/// HTML data
+#[derive(Debug, Default, Serialize)]
+struct HTMLData {
+    title: String,
+    chapters: Vec<HTMLDataChapter>,
+}
+
+/// HTML chapter
+#[derive(Debug, Default, Serialize)]
+struct HTMLDataChapter {
+    html: String,
+}
+
+/// Default template
+static DEFAULT_TEMPLATE: HTMLTemplate = HTMLTemplate {
+    id: "_default_",
+    file: include_str!("html/index.hbs"),
+    other_files: &[("sse.js", include_bytes!("html/sse.js"))],
+};
+impl HTMLRenderer {
     /// Creates a new debug renderer
     pub fn new() -> Result<Self> {
         let mut registry = Handlebars::new();
-        let template_id = Self::DEFAULT_TEMPLATE_ID.to_string();
-        registry.register_template_string(&template_id, HTML_TEMPLATE_STR)?;
-        Ok(Self {
-            registry,
-            template_id,
-        })
+        let template = &DEFAULT_TEMPLATE;
+        registry.register_template_string(template.id, template.file)?;
+        Ok(Self { registry, template })
     }
 
     /// Sets the template
-    pub fn template(mut self, id: &str, template: &str) -> Result<Self> {
-        self.registry.register_template_string(id, template)?;
-        self.template_id = id.to_string();
+    pub fn template(mut self, id: &str, template: &'static HTMLTemplate) -> Result<Self> {
+        self.template = template;
+        self.registry.register_template_string(id, template.file)?;
         Ok(self)
     }
 }
@@ -60,13 +81,18 @@ impl Renderer for HTMLRenderer {
         let data = self.extract_data(cfg, doc)?;
         debug!("{data:#?}");
 
-        let out_data = self.registry.render(&self.template_id, &data)?;
+        let index_data = self.registry.render(self.template.id, &data)?;
 
         let build_dir = cfg.build_dir().join("html");
         fs::create_dir_all(&build_dir)?;
 
-        let out_file = build_dir.join("index.html");
-        fs::write(out_file, out_data)?;
+        let index_file = build_dir.join("index.html");
+        fs::write(index_file, index_data)?;
+
+        for (file_name, file_data) in self.template.other_files {
+            let file = build_dir.join(file_name);
+            fs::write(&file, file_data)?;
+        }
 
         let src_assets_dir = cfg.assets_dir();
         fs_extra::copy_items(
@@ -75,21 +101,9 @@ impl Renderer for HTMLRenderer {
             &CopyOptions::new().copy_inside(true),
         )?;
 
+        debug!("Renderer (html) - OK");
         Ok(())
     }
-}
-
-/// HTML data
-#[derive(Debug, Default, Serialize)]
-struct HTMLData {
-    title: String,
-    chapters: Vec<HTMLDataChapter>,
-}
-
-/// HTML chapter
-#[derive(Debug, Default, Serialize)]
-struct HTMLDataChapter {
-    html: String,
 }
 
 impl HTMLRenderer {
