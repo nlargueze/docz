@@ -5,6 +5,7 @@ pub mod cfg;
 pub mod rend;
 pub mod serve;
 pub mod src;
+pub mod watch;
 
 use std::{
     collections::HashMap,
@@ -15,6 +16,7 @@ use std::{
 use anyhow::{Error, Result};
 
 use cfg::Config;
+use log::trace;
 use rend::{DebugRenderer, HTMLRenderer, Renderer};
 
 /// Documentation service
@@ -117,16 +119,21 @@ impl ServiceBuilder {
     }
 
     /// Adds the HTML renderer
-    pub fn html_renderer(self) -> Result<Self> {
-        let html_renderer = HTMLRenderer::new()?;
-        Ok(self.renderer("html", html_renderer))
+    pub fn html_renderer(self) -> Self {
+        let html_renderer = HTMLRenderer::new();
+        self.renderer("html", html_renderer)
     }
 
     /// Builds the service
-    pub fn build(self) -> Result<Service> {
+    pub fn build(mut self) -> Result<Service> {
         let mut service = Service::default();
         service.config.set_root_dir(&self.root_dir);
         service.config.load_file()?;
+        trace!("Service root is: {}", service.config.root_dir().display());
+        for (id, renderer) in self.renderers.iter_mut() {
+            trace!("Registering renderer ({id})");
+            renderer.register(&service.config)?;
+        }
         service.renderers = self.renderers;
         Ok(service)
     }

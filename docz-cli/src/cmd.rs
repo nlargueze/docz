@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use docz_lib::{serve::ServeOptions, Service};
+use docz_lib::{build::BuildOptions, serve::ServeOptions, Service};
 
 /// CLI arguments
 #[derive(Parser)]
@@ -33,7 +33,7 @@ pub enum Command {
     Init {},
     /// Builds the doc
     Build {
-        #[arg(long, short, default_value_t = false)]
+        #[arg(long, short)]
         watch: bool,
     },
     /// Cleans the build folder
@@ -42,10 +42,10 @@ pub enum Command {
     Serve {
         #[arg(long, short, default_value_t = 3000)]
         port: u16,
-        #[arg(long, short, default_value_t = true)]
-        watch: bool,
-        #[arg(long, short, default_value_t = true)]
-        open: bool,
+        #[arg(long)]
+        no_watch: bool,
+        #[arg(long)]
+        no_open: bool,
     },
 }
 
@@ -75,28 +75,32 @@ pub async fn run() -> Result<()> {
         }
         Command::Build { watch } => {
             let service = init_service(&root_dir)?;
-            if watch {
-                eprintln!("Building with watch ...");
-                service
-                    .build_with_watch(|paths| {
-                        eprintln!(
-                            "... Rebuilt ({})",
-                            paths
-                                .into_iter()
-                                .map(|p| p.display().to_string())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        );
-                    })
-                    .await?;
-            } else {
-                service.build()?;
-                eprintln!("✅ Built the docs");
-            }
+            eprintln!("Building with watch ...");
+            service
+                .build(BuildOptions {
+                    watch,
+                    extra_watch_dirs: vec![],
+                    on_rebuilt: Some(Box::new(|event| {
+                        eprintln!("... Rebuilt ({event:?})",);
+                    })),
+                })
+                .await?;
+            eprintln!("✅ Built the docs");
         }
-        Command::Serve { port, watch, open } => {
+        Command::Serve {
+            port,
+            no_watch,
+            no_open,
+        } => {
             let service = init_service(&root_dir)?;
-            service.serve(ServeOptions { port, watch, open }).await?;
+            service
+                .serve(ServeOptions {
+                    port,
+                    watch: !no_watch,
+                    open: !no_open,
+                    extra_watch_dirs: vec![],
+                })
+                .await?;
         }
     }
 
@@ -108,7 +112,7 @@ fn init_service(root_dir: &Path) -> Result<Service> {
     let service = Service::builder()
         .root_dir(root_dir)
         .dbg_renderer()
-        .html_renderer()?
+        .html_renderer()
         .build()?;
     Ok(service)
 }

@@ -6,7 +6,6 @@ use crate::{cfg::Config, src::SourceData};
 
 use super::Renderer;
 use anyhow::Result;
-use log::debug;
 
 /// Renderer for debugging
 #[derive(Debug, Default)]
@@ -21,7 +20,6 @@ impl DebugRenderer {
 
 impl Renderer for DebugRenderer {
     fn render(&self, cfg: &Config, data: &SourceData) -> Result<()> {
-        debug!("Renderer (debug)");
         let data_str = format!("{data:#?}");
 
         let build_dir = cfg.build_dir();

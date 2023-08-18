@@ -17,7 +17,6 @@ async fn main() {
         .root_dir(root_dir_str)
         .dbg_renderer()
         .html_renderer()
-        .unwrap()
         .build()
         .unwrap();
 
@@ -26,6 +25,7 @@ async fn main() {
             port: 5000,
             open: true,
             watch: true,
+            extra_watch_dirs: vec![],
         })
         .await
         .unwrap();

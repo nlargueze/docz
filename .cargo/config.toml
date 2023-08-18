@@ -1,5 +1,5 @@
 [env]
-RUST_LOG = "off,docz_lib=trace, docz_lib::rend=off"
+RUST_LOG = "off,docz_lib=trace"
 
 [alias]
 docz = "run --bin docz -p docz --"

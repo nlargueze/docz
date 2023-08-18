@@ -1,16 +1,18 @@
 //! Server
 
-use std::time::Instant;
+use std::path::PathBuf;
 
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Error, Result};
 use async_stream::stream;
 use futures_core::Stream;
-use log::{debug, warn};
-use notify::{EventKind, RecursiveMode, Watcher};
+use log::{debug, trace, warn};
 use salvo::{prelude::*, sse};
-use tokio::sync::{broadcast, watch};
+use tokio::sync::broadcast;
 
-use crate::Service;
+use crate::{
+    watch::{EventExt, Watcher},
+    Service,
+};
 
 /// Serve options
 #[derive(Debug)]
@@ -21,6 +23,8 @@ pub struct ServeOptions {
     pub open: bool,
     /// Watches the source files and restarts the server
     pub watch: bool,
+    /// Extra watch dirs
+    pub extra_watch_dirs: Vec<PathBuf>,
 }
 
 impl Default for ServeOptions {
@@ -29,6 +33,7 @@ impl Default for ServeOptions {
             port: 3000,
             open: false,
             watch: false,
+            extra_watch_dirs: vec![],
         }
     }
 }
@@ -48,33 +53,10 @@ impl Service {
     /// Servers the build
     pub async fn serve(self, opts: ServeOptions) -> Result<()> {
         // initial build
-        self.build()?;
+        self.build_once()?;
         debug!("Build - OK");
 
-        // setup watch
-        let (tx_watch, mut rx_watch) = watch::channel(false);
-        let mut watcher = notify::recommended_watcher(
-            move |res: Result<notify::Event, notify::Error>| match res {
-                Ok(event) => {
-                    // debug!("Received event: {:?}", event);
-                    let rebuild = matches!(
-                        event.kind,
-                        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
-                    );
-                    if let Err(err) = tx_watch.send(rebuild) {
-                        warn!("Error sending watch event: {}", err)
-                    }
-                }
-                Err(e) => warn!("watch error: {:?}", e),
-            },
-        )?;
-        if opts.watch {
-            let src_dir = self.config.src_dir();
-            debug!("Watching {:?}", src_dir);
-            watcher.watch(&src_dir, RecursiveMode::Recursive).unwrap();
-        }
-
-        // Rebuiltsignal channel
+        // Rebuilt channel
         let (tx_rebuilt, _rx_rebuilt) = broadcast::channel(100);
 
         // setup server
@@ -94,45 +76,49 @@ impl Service {
             );
         let server = Server::new(acceptor);
 
+        // server task
         let server_task = tokio::spawn(async move {
             eprintln!("Serving on http://{}", addr);
             server.serve(router).await;
             Ok(()) as Result<(), Error>
         });
 
-        let rebuild_task = tokio::spawn(async move {
-            let mut last_restart = Instant::now();
-            let err = loop {
-                match rx_watch.changed().await {
-                    Ok(_) => {
-                        let rebuild = *rx_watch.borrow();
-                        if rebuild {
-                            // NB: debouncing
-                            if last_restart.elapsed().as_millis() < 200 {
-                                continue;
-                            }
-                            last_restart = Instant::now();
+        // watch task
+        let mut watch_dirs = vec![self.config.src_dir()];
+        for extra_watch_dir in opts.extra_watch_dirs {
+            watch_dirs.push(extra_watch_dir);
+        }
+        let mut watcher = Watcher::new(watch_dirs, Some(200))?;
+        let rx_watch = if opts.watch {
+            Some(watcher.start()?)
+        } else {
+            None
+        };
 
-                            debug!("Rebuilding ...");
-                            self.build()?;
-                            debug!("Rebuilt OK");
-                            match tx_rebuilt.send(()) {
-                                Ok(_n) => {
-                                    debug!("Sent rebuilt channel signal");
-                                }
-                                Err(err) => {
-                                    warn!("Failed to send rebuilt signal: {err} ");
-                                    break err;
-                                }
+        // rebuild task
+        let rebuild_task = tokio::spawn(async move {
+            if let Some(mut rx_watch) = rx_watch {
+                loop {
+                    rx_watch.changed().await?;
+                    let event = rx_watch.borrow().clone();
+                    if event.triggers_rebuild() {
+                        trace!("Rebuilding ...");
+                        self.build_once()?;
+
+                        match tx_rebuilt.send(()) {
+                            Ok(_n) => {
+                                debug!("Sent rebuilt channel signal");
+                            }
+                            Err(err) => {
+                                warn!("Failed to send rebuilt signal: {err} ");
+                                return Err(anyhow!(err));
                             }
                         }
                     }
-                    Err(err) => {
-                        warn!("failed to received watch signal {err}");
-                    }
                 }
-            };
-            Err(err.into()) as Result<(), Error>
+            } else {
+                Ok(()) as Result<(), Error>
+            }
         });
 
         // open

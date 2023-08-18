@@ -3,11 +3,24 @@
 use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
-use log::{debug, warn};
-use notify::{EventKind, RecursiveMode, Watcher};
-use tokio::sync::watch;
+use log::{debug, trace};
+use notify::Event;
 
-use crate::Service;
+use crate::{
+    watch::{EventExt, Watcher},
+    Service,
+};
+
+/// Build options
+#[derive(Default)]
+pub struct BuildOptions {
+    /// Watch mode
+    pub watch: bool,
+    /// Extra watch dirs
+    pub extra_watch_dirs: Vec<PathBuf>,
+    /// On rebuilt
+    pub on_rebuilt: Option<Box<dyn Fn(Event) + Send + Sync>>,
+}
 
 impl Service {
     /// Removes the build folder
@@ -20,7 +33,35 @@ impl Service {
     }
 
     /// Builds the documentation
-    pub fn build(&self) -> Result<()> {
+    pub async fn build(&self, opts: BuildOptions) -> Result<()> {
+        self.build_once()?;
+
+        if opts.watch {
+            let mut watch_dirs = vec![self.config.src_dir()];
+            for extra_watch_dir in opts.extra_watch_dirs {
+                watch_dirs.push(extra_watch_dir);
+            }
+            let mut watcher = Watcher::new(watch_dirs, Some(200))?;
+            let mut rx_watch = watcher.start()?;
+            loop {
+                rx_watch.changed().await?;
+                let event = rx_watch.borrow().clone();
+                if event.triggers_rebuild() {
+                    debug!("Rebuilding ...");
+                    self.build_once()?;
+                    debug!("Rebuilt OK");
+                    if let Some(on_rebuilt) = opts.on_rebuilt.as_ref() {
+                        on_rebuilt(event.clone());
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Builds the documentation
+    pub(crate) fn build_once(&self) -> Result<()> {
         let src_tree = self.load_src_dir()?;
 
         // recreate the build dir
@@ -30,6 +71,7 @@ impl Service {
 
         for id in self.config.output_ids() {
             if let Some(renderer) = self.renderers.get(id) {
+                trace!("Rendering output ({id})");
                 renderer.render(&self.config, &src_tree)?;
             } else {
                 return Err(anyhow!(
@@ -40,45 +82,5 @@ impl Service {
         }
 
         Ok(())
-    }
-
-    /// Builds the documentation
-    pub async fn build_with_watch<F>(&self, on_rebuilt: F) -> Result<()>
-    where
-        F: Fn(Vec<PathBuf>),
-    {
-        // setup watch
-        let (tx_watch, mut rx_watch) = watch::channel(vec![]);
-        let mut watcher = notify::recommended_watcher(
-            move |res: Result<notify::Event, notify::Error>| match res {
-                Ok(event) => {
-                    // debug!("Received event: {:?}", event);
-                    let rebuild = matches!(
-                        event.kind,
-                        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
-                    );
-                    if rebuild {
-                        if let Err(err) = tx_watch.send(event.paths) {
-                            warn!("Error sending watch event: {}", err)
-                        }
-                    }
-                }
-                Err(e) => warn!("watch error: {:?}", e),
-            },
-        )?;
-
-        let src_dir = self.config.src_dir();
-        debug!("Watching {:?}", src_dir);
-        watcher.watch(&src_dir, RecursiveMode::Recursive)?;
-
-        self.build()?;
-        loop {
-            rx_watch.changed().await?;
-            let paths = rx_watch.borrow().to_vec();
-            debug!("Rebuilding ...");
-            self.build()?;
-            debug!("Rebuilt OK");
-            on_rebuilt(paths);
-        }
     }
 }

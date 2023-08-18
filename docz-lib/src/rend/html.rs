@@ -1,13 +1,13 @@
 //! HTML renderer
 
-use std::fs;
+use std::{ffi::OsStr, fs, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use comrak::{ComrakExtensionOptions, ComrakOptions, ComrakParseOptions, ComrakRenderOptions};
 use fs_extra::dir::CopyOptions;
 use handlebars::Handlebars;
-use log::debug;
-use serde::Serialize;
+use log::{debug, trace};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::Config,
@@ -16,25 +16,38 @@ use crate::{
 
 use super::Renderer;
 
-/// SSE JS file
-pub const SSE_JS: &[u8] = include_bytes!("html/sse.js");
+/// Default template ID
+const DEFAULT_TEMPLATE_ID: &str = "default";
 
 /// Renderer for HTML docs
 #[derive(Debug)]
 pub struct HTMLRenderer {
     registry: Handlebars<'static>,
-    template: &'static HTMLTemplate,
+    template_id: &'static str,
+    static_files: Vec<(&'static str, &'static [u8])>,
+    static_files_copy: Vec<(PathBuf, PathBuf)>,
 }
 
 /// HTML Template
 #[derive(Debug)]
-pub struct HTMLTemplate {
-    /// Template ID
-    pub id: &'static str,
+struct HTMLTemplate {
+    /// ID
+    id: &'static str,
     /// Template file
-    pub file: &'static str,
-    /// Static files
-    pub static_files: &'static [(&'static str, &'static [u8])],
+    file: String,
+    /// Embedded Static files
+    static_files: Vec<(&'static str, &'static [u8])>,
+}
+
+/// HTML renderer Config
+#[derive(Debug, Deserialize, Default)]
+pub struct OutputHtmlConfig {
+    /// Overwrites the default template
+    pub template: Option<String>,
+    /// Overwrites the `index.hbs` file
+    pub index: Option<PathBuf>,
+    /// Overwrites the static files
+    pub static_files: Option<Vec<(PathBuf, PathBuf)>>,
 }
 
 /// HTML data
@@ -50,57 +63,117 @@ struct HTMLDataSection {
     html: String,
 }
 
-/// Default template
-static DEFAULT_TEMPLATE: HTMLTemplate = HTMLTemplate {
-    id: "_default_",
-    file: include_str!("html/index.hbs"),
-    static_files: &[("sse.js", SSE_JS)],
-};
-
 impl HTMLRenderer {
     /// Creates a new HTML renderer
-    pub fn new() -> Result<Self> {
-        let mut registry = Handlebars::new();
-        let template = &DEFAULT_TEMPLATE;
-        registry.register_template_string(template.id, template.file)?;
-        Ok(Self { registry, template })
+    pub fn new() -> Self {
+        Self {
+            registry: Handlebars::new(),
+            template_id: DEFAULT_TEMPLATE_ID,
+            static_files: vec![],
+            static_files_copy: vec![],
+        }
     }
+}
 
-    /// Sets the template to use
-    pub fn template(mut self, id: &str, template: &'static HTMLTemplate) -> Result<Self> {
-        self.template = template;
-        self.registry.register_template_string(id, template.file)?;
-        Ok(self)
+impl Default for HTMLRenderer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl Renderer for HTMLRenderer {
+    fn register(&mut self, cfg: &Config) -> Result<()> {
+        // get config
+        let html_config = cfg
+            .get_output_cfg::<OutputHtmlConfig>("html")?
+            .unwrap_or_default();
+        let root_dir = cfg.root_dir();
+
+        // assign template
+        let template_id = html_config
+            .template
+            .unwrap_or(DEFAULT_TEMPLATE_ID.to_string());
+        let mut template = match template_id.as_str() {
+            "default" => HTMLTemplate {
+                id: DEFAULT_TEMPLATE_ID,
+                file: include_str!("html/tpl/default/index.hbs").to_string(),
+                static_files: vec![
+                    ("sse.js", include_bytes!("html/tpl/default/sse.js")),
+                    ("style.css", include_bytes!("html/tpl/default/style.css")),
+                ],
+            },
+            _ => {
+                return Err(anyhow!("Unknown template ID: {}", template_id));
+            }
+        };
+
+        // assign template ID
+        trace!("Registered HTML template id: {}", template.id);
+        self.template_id = template.id;
+
+        // overwrite the index template
+        if let Some(index) = html_config.index {
+            let index_hbs_path = root_dir.join(index);
+            trace!(
+                "HTML template, overwriting index file: {}",
+                index_hbs_path.display()
+            );
+            if index_hbs_path.extension() != Some(OsStr::new("hbs")) {
+                return Err(anyhow!(
+                    "Invalid index template file: {}",
+                    index_hbs_path.display()
+                ));
+            }
+            let index_hbs_str = fs::read_to_string(&index_hbs_path).context(format!(
+                "HTML template file not found ({})",
+                index_hbs_path.display()
+            ))?;
+            template = HTMLTemplate {
+                id: "user-defined",
+                file: index_hbs_str,
+                static_files: vec![],
+            };
+        }
+
+        // static files to copy
+        if let Some(static_files) = html_config.static_files {
+            self.static_files_copy = static_files;
+        }
+
+        // assign to renderer
+        self.registry
+            .register_template_string(template.id, template.file)?;
+        self.static_files = template.static_files;
+
+        Ok(())
+    }
+
     fn render(&self, cfg: &Config, data: &SourceData) -> Result<()> {
-        debug!("Renderer (html)");
+        // process source
+        let html_data = self.process_data(cfg, data)?;
+        debug!("HTML template data \n{html_data:#?}");
 
-        let html_data = self.extract_html_data(cfg, data)?;
-        debug!("{html_data:#?}");
-        let index_file_bytes = self.registry.render(self.template.id, &html_data)?;
-
+        // create build dir (NB: /build has been cleared before)
+        let root_dir = cfg.root_dir();
         let build_dir = cfg.build_dir().join("html");
         fs::create_dir_all(&build_dir)?;
 
+        // write index.html
+        let index_file_str = self.registry.render(self.template_id, &html_data)?;
         let index_file = build_dir.join("index.html");
-        fs::write(index_file, index_file_bytes)?;
+        fs::write(index_file, index_file_str)?;
 
-        for (file_name, file_data) in self.template.static_files {
-            let file = build_dir.join(file_name);
-            fs::write(&file, file_data)?;
+        // static files
+        for (file_name, file_data) in &self.static_files {
+            fs::write(&build_dir.join(file_name), file_data)?;
+        }
+        for (src, dest) in &self.static_files_copy {
+            fs::copy(&root_dir.join(src), &build_dir.join(dest))?;
         }
 
+        // copy assets from source
         let src_assets_dir = cfg.assets_dir();
-        fs_extra::copy_items(
-            &[&src_assets_dir],
-            build_dir.join("assets"),
-            &CopyOptions::new().copy_inside(true),
-        )?;
-
-        debug!("Renderer (html) - OK");
+        fs_extra::copy_items(&[&src_assets_dir], build_dir, &CopyOptions::new())?;
         Ok(())
     }
 }
@@ -140,7 +213,7 @@ impl HTMLRenderer {
     }
 
     /// Extracts the HTML data
-    fn extract_html_data(&self, cfg: &Config, data: &SourceData) -> Result<HTMLData> {
+    fn process_data(&self, cfg: &Config, data: &SourceData) -> Result<HTMLData> {
         let mut html_data = HTMLData {
             title: cfg.file().doc.title.to_string(),
             sections: vec![],
@@ -148,7 +221,7 @@ impl HTMLRenderer {
 
         let comrak_opts = self.comrak_options();
         for src_file in &data.files {
-            let html_section = self.extract_html_section_iter(src_file, &comrak_opts)?;
+            let html_section = self.process_data_section_iter(src_file, &comrak_opts)?;
             html_data.sections.push(html_section);
         }
 
@@ -157,7 +230,7 @@ impl HTMLRenderer {
 
     /// Renders a section recursively
     #[allow(clippy::only_used_in_recursion)]
-    fn extract_html_section_iter(
+    fn process_data_section_iter(
         &self,
         src_file: &SourceFile,
         comrak_opts: &ComrakOptions,
@@ -180,7 +253,7 @@ impl HTMLRenderer {
 
         let mut html_sections = vec![];
         for src_file in &src_file.children {
-            let html_section = self.extract_html_section_iter(src_file, comrak_opts)?;
+            let html_section = self.process_data_section_iter(src_file, comrak_opts)?;
             html_sections.push(html_section);
         }
 

@@ -110,7 +110,7 @@ impl Config {
             None => return Ok(None),
         };
 
-        let t = toml::from_str::<T>(&value.to_string())?;
+        let t = toml::from_str::<T>(toml::to_string(value)?.as_str())?;
         Ok(Some(t))
     }
 }

@@ -13,3 +13,6 @@ build_dir = "build"
 [output.debug]
 
 [output.html]
+template = "default"
+# index = "tpl/index.hbs"
+# static_files = [["tpl/style.css", "style.css"]]
