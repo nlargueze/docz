@@ -10,6 +10,9 @@ assets_dir = "_assets"
 [build]
 build_dir = "build"
 
+[watch]
+extra_dirs = []
+
 [output.html]
 
 [output.debug]

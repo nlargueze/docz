@@ -25,7 +25,6 @@ async fn main() {
             port: 5000,
             open: true,
             watch: true,
-            extra_watch_dirs: vec![],
         })
         .await
         .unwrap();

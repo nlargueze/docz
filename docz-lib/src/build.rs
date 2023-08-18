@@ -1,6 +1,6 @@
 //! Build
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
 use anyhow::{anyhow, Result};
 use log::{debug, trace};
@@ -16,8 +16,6 @@ use crate::{
 pub struct BuildOptions {
     /// Watch mode
     pub watch: bool,
-    /// Extra watch dirs
-    pub extra_watch_dirs: Vec<PathBuf>,
     /// On rebuilt
     pub on_rebuilt: Option<Box<dyn Fn(Event) + Send + Sync>>,
 }
@@ -37,11 +35,8 @@ impl Service {
         self.build_once()?;
 
         if opts.watch {
-            let mut watch_dirs = vec![self.config.src_dir()];
-            for extra_watch_dir in opts.extra_watch_dirs {
-                watch_dirs.push(extra_watch_dir);
-            }
-            let mut watcher = Watcher::new(watch_dirs, Some(200))?;
+            let watched_dirs = self.watched_dirs();
+            let mut watcher = Watcher::new(watched_dirs, Some(200))?;
             let mut rx_watch = watcher.start()?;
             loop {
                 rx_watch.changed().await?;

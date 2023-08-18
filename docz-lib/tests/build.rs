@@ -27,7 +27,6 @@ async fn test_build() {
     service
         .build(BuildOptions {
             watch: false,
-            extra_watch_dirs: vec![],
             on_rebuilt: None,
         })
         .await

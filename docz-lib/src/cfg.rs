@@ -124,6 +124,8 @@ pub struct ConfigFile {
     pub src: SourceConfig,
     /// Build config
     pub build: BuildConfig,
+    /// Watch config
+    pub watch: WatchConfig,
     /// Output config
     pub output: HashMap<String, toml::Value>,
 }
@@ -138,6 +140,7 @@ impl Default for ConfigFile {
             doc: DocConfig::default(),
             src: SourceConfig::default(),
             build: BuildConfig::default(),
+            watch: WatchConfig::default(),
             output,
         }
     }
@@ -194,4 +197,10 @@ impl Default for BuildConfig {
             build_dir: PathBuf::from("build"),
         }
     }
+}
+
+/// Watch configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct WatchConfig {
+    pub extra_dirs: Vec<PathBuf>,
 }

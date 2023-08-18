@@ -1,7 +1,5 @@
 //! Server
 
-use std::path::PathBuf;
-
 use anyhow::{anyhow, Error, Result};
 use async_stream::stream;
 use futures_core::Stream;
@@ -23,8 +21,6 @@ pub struct ServeOptions {
     pub open: bool,
     /// Watches the source files and restarts the server
     pub watch: bool,
-    /// Extra watch dirs
-    pub extra_watch_dirs: Vec<PathBuf>,
 }
 
 impl Default for ServeOptions {
@@ -33,7 +29,6 @@ impl Default for ServeOptions {
             port: 3000,
             open: false,
             watch: false,
-            extra_watch_dirs: vec![],
         }
     }
 }
@@ -84,11 +79,8 @@ impl Service {
         });
 
         // watch task
-        let mut watch_dirs = vec![self.config.src_dir()];
-        for extra_watch_dir in opts.extra_watch_dirs {
-            watch_dirs.push(extra_watch_dir);
-        }
-        let mut watcher = Watcher::new(watch_dirs, Some(200))?;
+        let watched_dirs = self.watched_dirs();
+        let mut watcher = Watcher::new(watched_dirs, Some(200))?;
         let rx_watch = if opts.watch {
             Some(watcher.start()?)
         } else {

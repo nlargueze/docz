@@ -10,9 +10,12 @@ assets_dir = "_assets"
 [build]
 build_dir = "build"
 
+[watch]
+extra_dirs = ["tpl"]
+
 [output.debug]
 
 [output.html]
 template = "default"
 # index = "tpl/index.hbs"
-# static_files = [["tpl/style.css", "style.css"]]
+static_files = [["tpl/style.css", "style.css"]]

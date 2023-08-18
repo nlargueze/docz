@@ -7,6 +7,8 @@ use log::{debug, warn};
 use notify::{Event, EventKind, FsEventWatcher, RecursiveMode, Watcher as _};
 use tokio::sync::watch;
 
+use crate::Service;
+
 /// Watcher
 #[derive(Debug)]
 pub(crate) struct Watcher {
@@ -74,5 +76,16 @@ impl EventExt for Event {
             self.kind,
             EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
         )
+    }
+}
+
+impl Service {
+    /// Returns the directories to watch
+    pub(crate) fn watched_dirs(&self) -> Vec<PathBuf> {
+        let mut dirs = vec![self.config.src_dir()];
+        for extra_dir in self.config.file().watch.extra_dirs.iter() {
+            dirs.push(self.config.root_dir().join(extra_dir));
+        }
+        dirs
     }
 }

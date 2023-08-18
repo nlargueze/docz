@@ -16,11 +16,9 @@ pub struct CliArgs {
     /// Optional current working directory
     #[arg(long)]
     pub cwd: Option<PathBuf>,
-
     /// Turn debugging information on
     #[arg(short, long)]
     pub dbg: bool,
-
     /// Commands
     #[command(subcommand)]
     pub command: Command,
@@ -33,6 +31,7 @@ pub enum Command {
     Init {},
     /// Builds the doc
     Build {
+        /// Watches for changes
         #[arg(long, short)]
         watch: bool,
     },
@@ -40,10 +39,13 @@ pub enum Command {
     Clean {},
     /// Servces the doc
     Serve {
+        /// Server port
         #[arg(long, short, default_value_t = 3000)]
         port: u16,
+        /// Do not watch
         #[arg(long)]
         no_watch: bool,
+        /// Do not open the browser  
         #[arg(long)]
         no_open: bool,
     },
@@ -79,7 +81,6 @@ pub async fn run() -> Result<()> {
             service
                 .build(BuildOptions {
                     watch,
-                    extra_watch_dirs: vec![],
                     on_rebuilt: Some(Box::new(|event| {
                         eprintln!("... Rebuilt ({event:?})",);
                     })),
@@ -98,7 +99,6 @@ pub async fn run() -> Result<()> {
                     port,
                     watch: !no_watch,
                     open: !no_open,
-                    extra_watch_dirs: vec![],
                 })
                 .await?;
         }
