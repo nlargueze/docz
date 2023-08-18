@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::{
     cfg::Config,
-    doc::{Document, Section},
+    src::{SourceData, SourceFile},
 };
 
 use super::Renderer;
@@ -40,13 +40,13 @@ pub struct HTMLTemplate {
 /// HTML data
 #[derive(Debug, Default, Serialize)]
 struct HTMLData {
-    title: String,
-    chapters: Vec<HTMLDataChapter>,
+    pub title: String,
+    pub sections: Vec<HTMLDataSection>,
 }
 
-/// HTML chapter
+/// HTML data section
 #[derive(Debug, Default, Serialize)]
-struct HTMLDataChapter {
+struct HTMLDataSection {
     html: String,
 }
 
@@ -56,8 +56,9 @@ static DEFAULT_TEMPLATE: HTMLTemplate = HTMLTemplate {
     file: include_str!("html/index.hbs"),
     static_files: &[("sse.js", SSE_JS)],
 };
+
 impl HTMLRenderer {
-    /// Creates a new debug renderer
+    /// Creates a new HTML renderer
     pub fn new() -> Result<Self> {
         let mut registry = Handlebars::new();
         let template = &DEFAULT_TEMPLATE;
@@ -65,7 +66,7 @@ impl HTMLRenderer {
         Ok(Self { registry, template })
     }
 
-    /// Sets the template
+    /// Sets the template to use
     pub fn template(mut self, id: &str, template: &'static HTMLTemplate) -> Result<Self> {
         self.template = template;
         self.registry.register_template_string(id, template.file)?;
@@ -74,12 +75,12 @@ impl HTMLRenderer {
 }
 
 impl Renderer for HTMLRenderer {
-    fn render(&self, cfg: &Config, doc: &crate::doc::Document) -> Result<()> {
+    fn render(&self, cfg: &Config, data: &SourceData) -> Result<()> {
         debug!("Renderer (html)");
 
-        let data = self.extract_data(cfg, doc)?;
-        debug!("{data:#?}");
-        let index_file_bytes = self.registry.render(self.template.id, &data)?;
+        let html_data = self.extract_html_data(cfg, data)?;
+        debug!("{html_data:#?}");
+        let index_file_bytes = self.registry.render(self.template.id, &html_data)?;
 
         let build_dir = cfg.build_dir().join("html");
         fs::create_dir_all(&build_dir)?;
@@ -105,24 +106,7 @@ impl Renderer for HTMLRenderer {
 }
 
 impl HTMLRenderer {
-    /// Extracts the data
-    fn extract_data(&self, cfg: &Config, doc: &Document) -> Result<HTMLData> {
-        let mut data = HTMLData {
-            title: cfg.file().doc.title.to_string(),
-            ..Default::default()
-        };
-
-        let comrak_opts = self.comrak_options();
-        for section in &doc.sections {
-            let html = self.extract_section_iter(section, &comrak_opts)?;
-            let chapter = HTMLDataChapter { html };
-            data.chapters.push(chapter);
-        }
-
-        Ok(data)
-    }
-
-    /// Sets the comrak options
+    /// Returns the comrak options
     fn comrak_options(&self) -> ComrakOptions {
         ComrakOptions {
             extension: ComrakExtensionOptions {
@@ -155,45 +139,61 @@ impl HTMLRenderer {
         }
     }
 
+    /// Extracts the HTML data
+    fn extract_html_data(&self, cfg: &Config, data: &SourceData) -> Result<HTMLData> {
+        let mut html_data = HTMLData {
+            title: cfg.file().doc.title.to_string(),
+            sections: vec![],
+        };
+
+        let comrak_opts = self.comrak_options();
+        for src_file in &data.files {
+            let html_section = self.extract_html_section_iter(src_file, &comrak_opts)?;
+            html_data.sections.push(html_section);
+        }
+
+        Ok(html_data)
+    }
+
     /// Renders a section recursively
     #[allow(clippy::only_used_in_recursion)]
-    fn extract_section_iter(
+    fn extract_html_section_iter(
         &self,
-        section: &Section,
+        src_file: &SourceFile,
         comrak_opts: &ComrakOptions,
-    ) -> Result<String> {
-        let html_file = match section
-            .file
+    ) -> Result<HTMLDataSection> {
+        let src_file_html = match src_file
+            .path
             .extension()
             .map(|ext| ext.to_str().unwrap_or(""))
             .unwrap_or("")
         {
             "md" | "markdown" => {
-                let content_str = String::from_utf8(section.content.to_vec())?;
+                let content_str = String::from_utf8(src_file.content.to_vec())?;
                 comrak::markdown_to_html(&content_str, comrak_opts)
             }
             _ => {
-                debug!("Skipped file {}", section.file.display());
+                debug!("Skipped file {}", src_file.path.display());
                 String::new()
             }
         };
 
-        let mut html_subsections = vec![];
-        for subsection in &section.children {
-            let subsec_html = self.extract_section_iter(subsection, comrak_opts)?;
-            html_subsections.push(subsec_html);
+        let mut html_sections = vec![];
+        for src_file in &src_file.children {
+            let html_section = self.extract_html_section_iter(src_file, comrak_opts)?;
+            html_sections.push(html_section);
         }
 
         let html = format!(
             "{}\n{}",
-            html_file,
-            html_subsections
+            src_file_html,
+            html_sections
                 .iter()
-                .map(|html| format!("<div class=\"section\">{html}</div>"))
+                .map(|html| format!("<div class=\"section\">{}</div>", html.html))
                 .collect::<Vec<_>>()
                 .join("\n")
         );
 
-        Ok(html)
+        Ok(HTMLDataSection { html })
     }
 }

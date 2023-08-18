@@ -1,14 +1,13 @@
 //! Build
 
-use std::{fs, path::Path};
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
-use log::trace;
+use log::{debug, warn};
+use notify::{EventKind, RecursiveMode, Watcher};
+use tokio::sync::watch;
 
-use crate::{
-    doc::{Document, Section},
-    Service,
-};
+use crate::Service;
 
 impl Service {
     /// Removes the build folder
@@ -22,7 +21,7 @@ impl Service {
 
     /// Builds the documentation
     pub fn build(&self) -> Result<()> {
-        let doc = self.extract_src()?;
+        let src_tree = self.load_src_dir()?;
 
         // recreate the build dir
         let build_dir = self.config.build_dir();
@@ -31,7 +30,7 @@ impl Service {
 
         for id in self.config.output_ids() {
             if let Some(renderer) = self.renderers.get(id) {
-                renderer.render(&self.config, &doc)?;
+                renderer.render(&self.config, &src_tree)?;
             } else {
                 return Err(anyhow!(
                     "Invalid output type ({}). Check the config file or add a renderer",
@@ -43,63 +42,43 @@ impl Service {
         Ok(())
     }
 
-    /// Extracts the source files and populates the [Document]
-    fn extract_src(&self) -> Result<Document> {
-        let mut doc = Document::default();
+    /// Builds the documentation
+    pub async fn build_with_watch<F>(&self, on_rebuilt: F) -> Result<()>
+    where
+        F: Fn(Vec<PathBuf>),
+    {
+        // setup watch
+        let (tx_watch, mut rx_watch) = watch::channel(vec![]);
+        let mut watcher = notify::recommended_watcher(
+            move |res: Result<notify::Event, notify::Error>| match res {
+                Ok(event) => {
+                    // debug!("Received event: {:?}", event);
+                    let rebuild = matches!(
+                        event.kind,
+                        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+                    );
+                    if rebuild {
+                        if let Err(err) = tx_watch.send(event.paths) {
+                            warn!("Error sending watch event: {}", err)
+                        }
+                    }
+                }
+                Err(e) => warn!("watch error: {:?}", e),
+            },
+        )?;
+
         let src_dir = self.config.src_dir();
-        let sections = self.extract_src_section_iter(&src_dir, true)?;
-        doc.sections = sections;
-        Ok(doc)
-    }
+        debug!("Watching {:?}", src_dir);
+        watcher.watch(&src_dir, RecursiveMode::Recursive)?;
 
-    /// Extracts the sections for a dir recursively
-    fn extract_src_section_iter(&self, dir: &Path, is_top_level: bool) -> Result<Vec<Section>> {
-        let assets_dir = self.config.assets_dir();
-
-        let mut files = vec![];
-        let mut dirs = vec![];
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let entry_type = entry.file_type()?;
-
-            if is_top_level && entry.path().starts_with(&assets_dir) {
-                continue;
-            }
-
-            if entry_type.is_dir() {
-                dirs.push(entry.path());
-            }
-
-            if entry_type.is_file() {
-                files.push(entry.path());
-            }
+        self.build()?;
+        loop {
+            rx_watch.changed().await?;
+            let paths = rx_watch.borrow().to_vec();
+            debug!("Rebuilding ...");
+            self.build()?;
+            debug!("Rebuilt OK");
+            on_rebuilt(paths);
         }
-
-        let mut sections = vec![];
-        for file in &files {
-            let mut section = Section::new(file);
-            section.content = fs::read(file.as_path())?;
-
-            // populate subsections
-            if let Some(index) = dirs.iter().position(|dir| {
-                // NB: the dir is related to the file if it has the same name (without extension)
-                let mut file_no_ext = file.clone();
-                file_no_ext.set_extension("");
-                dir.file_name() == file_no_ext.file_name()
-            }) {
-                let dir = dirs.remove(index);
-                let sub_sections = self.extract_src_section_iter(&dir, false)?;
-                section.children = sub_sections;
-            }
-
-            sections.push(section);
-        }
-
-        // check that no sub-dirs is orphan
-        for dir in dirs {
-            trace!("orphan source dir: {:#?}", dir);
-        }
-
-        Ok(sections)
     }
 }

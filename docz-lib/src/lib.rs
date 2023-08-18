@@ -2,9 +2,9 @@
 
 pub mod build;
 pub mod cfg;
-pub mod doc;
 pub mod rend;
 pub mod serve;
+pub mod src;
 
 use std::{
     collections::HashMap,

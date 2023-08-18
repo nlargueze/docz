@@ -7,20 +7,14 @@ async fn main() {
     env_logger::init();
 
     let args: Vec<String> = std::env::args().collect();
-    if let Some(doc_path) = args.get(1) {
-        std::env::set_current_dir(&args[1]).unwrap();
+    let root_dir_str = if let Some(arg_1) = args.get(1) {
+        arg_1
     } else {
-        std::env::set_current_dir("../doc").unwrap();
-    }
-    eprintln!("args: {:?}", args);
-
-    eprintln!(
-        "current_dir: {}",
-        std::env::current_dir().unwrap().display()
-    );
+        panic!("Example requires an extra argument to specify the root directory")
+    };
 
     let service = Service::builder()
-        .root_dir("../doc")
+        .root_dir(root_dir_str)
         .dbg_renderer()
         .html_renderer()
         .unwrap()

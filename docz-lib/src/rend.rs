@@ -8,10 +8,10 @@ pub use html::*;
 
 use anyhow::Result;
 
-use crate::{cfg::Config, doc::Document};
+use crate::{cfg::Config, src::SourceData};
 
 /// Renderer
 pub trait Renderer: Send {
     /// Renders a document
-    fn render(&self, cfg: &Config, doc: &Document) -> Result<()>;
+    fn render(&self, cfg: &Config, data: &SourceData) -> Result<()>;
 }

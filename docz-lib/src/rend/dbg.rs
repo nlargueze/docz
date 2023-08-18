@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use crate::cfg::Config;
+use crate::{cfg::Config, src::SourceData};
 
 use super::Renderer;
 use anyhow::Result;
@@ -20,13 +20,13 @@ impl DebugRenderer {
 }
 
 impl Renderer for DebugRenderer {
-    fn render(&self, cfg: &Config, doc: &crate::doc::Document) -> Result<()> {
+    fn render(&self, cfg: &Config, data: &SourceData) -> Result<()> {
         debug!("Renderer (debug)");
-        let doc_str = format!("{doc:#?}");
+        let data_str = format!("{data:#?}");
 
         let build_dir = cfg.build_dir();
         let file_path = build_dir.join("debug.txt");
-        fs::write(file_path, doc_str)?;
+        fs::write(file_path, data_str)?;
         Ok(())
     }
 }

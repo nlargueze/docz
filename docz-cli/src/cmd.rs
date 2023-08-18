@@ -32,7 +32,10 @@ pub enum Command {
     /// Initializes the root directory
     Init {},
     /// Builds the doc
-    Build {},
+    Build {
+        #[arg(long, short, default_value_t = false)]
+        watch: bool,
+    },
     /// Cleans the build folder
     Clean {},
     /// Servces the doc
@@ -70,10 +73,26 @@ pub async fn run() -> Result<()> {
             service.remove_build_dir()?;
             eprintln!("✅ Cleaned the build folder");
         }
-        Command::Build {} => {
+        Command::Build { watch } => {
             let service = init_service(&root_dir)?;
-            service.build()?;
-            eprintln!("✅ Built the docs");
+            if watch {
+                eprintln!("Building with watch ...");
+                service
+                    .build_with_watch(|paths| {
+                        eprintln!(
+                            "... Rebuilt ({})",
+                            paths
+                                .into_iter()
+                                .map(|p| p.display().to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                    })
+                    .await?;
+            } else {
+                service.build()?;
+                eprintln!("✅ Built the docs");
+            }
         }
         Command::Serve { port, watch, open } => {
             let service = init_service(&root_dir)?;
