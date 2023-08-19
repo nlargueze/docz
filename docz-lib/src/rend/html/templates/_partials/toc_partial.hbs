@@ -1,0 +1,10 @@
+<ol class="toc-list">
+    {{#each pages}}
+    <li class="toc-item">
+        <a href={{path}} class="toc-link">
+            {{index}}. {{title}}
+        </a>
+        {{> toc this}}
+    </li>
+    {{/each}}
+</ol>

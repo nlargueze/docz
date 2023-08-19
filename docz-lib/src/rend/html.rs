@@ -1,8 +1,11 @@
 //! HTML renderer
 
+mod templates;
+
 use std::{
     ffi::OsStr,
     fs,
+    io::BufWriter,
     path::{Path, PathBuf},
 };
 
@@ -19,7 +22,26 @@ use crate::{
     src::{SourceData, SourceFile},
 };
 
+use self::templates::HTMLTemplate;
+
 use super::Renderer;
+
+/// Renderer for HTML docs
+#[derive(Debug, Default)]
+pub struct HTMLRenderer {
+    registry: Handlebars<'static>,
+    template: HTMLTemplate,
+}
+
+impl HTMLRenderer {
+    /// Creates a new HTML renderer
+    pub fn new(template: HTMLTemplate) -> Self {
+        Self {
+            registry: Handlebars::default(),
+            template,
+        }
+    }
+}
 
 /// index.html template ID
 const INDEX_TEMPLATE_ID: &str = "_INDEX_";
@@ -40,67 +62,16 @@ pub struct OutputHtmlConfig {
     pub static_files: Option<Vec<(PathBuf, PathBuf)>>,
 }
 
-/// Renderer for HTML docs
-#[derive(Debug, Default)]
-pub struct HTMLRenderer {
-    registry: Handlebars<'static>,
-    template: HTMLTemplate,
-}
-
-impl HTMLRenderer {
-    /// Creates a new HTML renderer
-    pub fn new(template: HTMLTemplate) -> Self {
-        Self {
-            registry: Handlebars::default(),
-            template,
-        }
-    }
-}
-
-/// HTML Template
-#[derive(Debug)]
-pub struct HTMLTemplate {
-    /// ID
-    pub id: &'static str,
-    /// Handlebars template for index.html
-    pub index: String,
-    /// Handlebars template for {page}.html
-    pub page: String,
-    /// Embedded static files
-    pub embed_static_files: Vec<(&'static str, &'static [u8])>,
-    /// Static files to copy from the filesystem
-    pub fs_static_files: Vec<(PathBuf, PathBuf)>,
-}
-
-impl Default for HTMLTemplate {
-    fn default() -> Self {
-        Self {
-            id: "default",
-            index: include_str!("html/tpl/default/index.hbs").to_string(),
-            page: include_str!("html/tpl/default/page.hbs").to_string(),
-            embed_static_files: vec![
-                ("sse.js", include_bytes!("html/tpl/default/sse.js")),
-                ("style.css", include_bytes!("html/tpl/default/style.css")),
-                (
-                    "favicon.png",
-                    include_bytes!("html/tpl/default/favicon.png"),
-                ),
-                (
-                    "favicon.svg",
-                    include_bytes!("html/tpl/default/favicon.svg"),
-                ),
-            ],
-            fs_static_files: vec![],
-        }
-    }
-}
-
 /// HTML index.html data
 #[derive(Debug, Default, Serialize)]
 struct HTMLIndexData {
+    /// Title
     title: String,
+    /// Authors
     authors: Vec<String>,
+    /// Summary
     summary: String,
+    /// All pages
     pages: Vec<HTMLPageData>,
 }
 
@@ -111,10 +82,20 @@ struct HTMLPageData {
     id: String,
     /// URL path
     path: PathBuf,
+    /// Title
+    title: String,
+    /// Index (eg 1.2.4) - used for the table of contents
+    index: String,
     /// HTML content
     html: String,
     /// Sub-pages
     pages: Vec<HTMLPageData>,
+}
+
+/// File metadata
+#[derive(Debug, Deserialize, Default)]
+struct FileMetadata {
+    title: Option<String>,
 }
 
 impl Renderer for HTMLRenderer {
@@ -133,6 +114,9 @@ impl Renderer for HTMLRenderer {
                 match cfg_template_id.as_str() {
                     "default" => {
                         self.template = HTMLTemplate::default();
+                    }
+                    "article" => {
+                        self.template = HTMLTemplate::article();
                     }
                     _ => {
                         return Err(anyhow!("Unknown template ID: {}", cfg_template_id));
@@ -196,8 +180,12 @@ impl Renderer for HTMLRenderer {
         self.registry
             .register_template_string(PAGE_TEMPLATE_ID, &self.template.page)?;
         self.registry.register_partial(
-            "pagePartial",
-            include_str!("html/tpl/default/page_partial.hbs"),
+            "page",
+            include_str!("html/templates/_partials/page_partial.hbs"),
+        )?;
+        self.registry.register_partial(
+            "toc",
+            include_str!("html/templates/_partials/toc_partial.hbs"),
         )?;
 
         Ok(())
@@ -205,7 +193,7 @@ impl Renderer for HTMLRenderer {
 
     fn render(&self, cfg: &Config, src_data: &SourceData) -> Result<()> {
         // process the source files to template data
-        let data = self.process_src_data(cfg, src_data)?;
+        let data = process_src_data(cfg, src_data)?;
         debug!("HTML template data \n{data:#?}");
 
         // create HTML dir inside build (NB: /build has been cleared before)
@@ -242,117 +230,6 @@ impl Renderer for HTMLRenderer {
 }
 
 impl HTMLRenderer {
-    /// Returns the comrak options
-    fn comrak_options(&self) -> ComrakOptions {
-        ComrakOptions {
-            extension: ComrakExtensionOptions {
-                strikethrough: true,
-                tagfilter: false,
-                table: true,
-                autolink: true,
-                tasklist: true,
-                superscript: true,
-                header_ids: None,
-                footnotes: true,
-                description_lists: true,
-                front_matter_delimiter: Some("---".to_string()),
-            },
-            parse: ComrakParseOptions {
-                smart: false,
-                default_info_string: None,
-                relaxed_tasklist_matching: false,
-            },
-            render: ComrakRenderOptions {
-                hardbreaks: false,
-                github_pre_lang: true,
-                full_info_string: true,
-                width: 0,
-                unsafe_: false,
-                escape: false,
-                list_style: comrak::ListStyleType::Dash,
-                sourcepos: false,
-            },
-        }
-    }
-
-    /// Extracts the HTML data
-    fn process_src_data(&self, cfg: &Config, src_data: &SourceData) -> Result<HTMLIndexData> {
-        let mut html_data = HTMLIndexData {
-            title: cfg.file().doc.title.to_string(),
-            authors: cfg.file().doc.authors.to_vec(),
-            summary: cfg.file().doc.summary.to_string(),
-            pages: vec![],
-        };
-
-        let comrak_opts = self.comrak_options();
-        let src_dir = cfg.src_dir();
-        for src_file in &src_data.files {
-            if let Some(page) = self.process_src_file_data_iter(src_file, &comrak_opts, &src_dir)? {
-                html_data.pages.push(page);
-            };
-        }
-
-        Ok(html_data)
-    }
-
-    /// Renders a page recursively
-    #[allow(clippy::only_used_in_recursion)]
-    fn process_src_file_data_iter(
-        &self,
-        src_file: &SourceFile,
-        comrak_opts: &ComrakOptions,
-        src_dir: &Path,
-    ) -> Result<Option<HTMLPageData>> {
-        let html = match src_file
-            .path
-            .extension()
-            .map(|ext| ext.to_str().unwrap_or(""))
-            .unwrap_or("")
-        {
-            "md" | "markdown" => {
-                let content_str = String::from_utf8(src_file.content.to_vec())?;
-                comrak::markdown_to_html(&content_str, comrak_opts)
-            }
-            _ => {
-                warn!("Skipped file {}", src_file.path.display());
-                return Ok(None);
-            }
-        };
-
-        let id = {
-            let file_name = src_file
-                .path
-                .file_stem()
-                .ok_or(anyhow!("Invalid src file name"))?
-                .to_str()
-                .ok_or(anyhow!("Invalid src file name"))?;
-            slugify(file_name)
-        };
-
-        let path = src_file
-            .path
-            .strip_prefix(src_dir)
-            .context("Source file path is not within the source dir")?
-            .with_file_name(&id)
-            .with_extension("html");
-
-        let mut pages = vec![];
-        for src_file_page in &src_file.children {
-            if let Some(page) =
-                self.process_src_file_data_iter(src_file_page, comrak_opts, src_dir)?
-            {
-                pages.push(page);
-            };
-        }
-
-        Ok(Some(HTMLPageData {
-            id,
-            path,
-            html,
-            pages,
-        }))
-    }
-
     /// Renders the individual pages
     fn render_page_iter(&self, page: &HTMLPageData, build_dir: &Path) -> Result<()> {
         let page_file_str = self.registry.render(PAGE_TEMPLATE_ID, &page)?;
@@ -366,4 +243,163 @@ impl HTMLRenderer {
         }
         Ok(())
     }
+}
+
+/// Returns the comrak options
+fn comrak_options() -> ComrakOptions {
+    ComrakOptions {
+        extension: ComrakExtensionOptions {
+            strikethrough: true,
+            tagfilter: false,
+            table: true,
+            autolink: true,
+            tasklist: true,
+            superscript: true,
+            header_ids: None,
+            footnotes: true,
+            description_lists: true,
+            front_matter_delimiter: Some("---".to_string()),
+        },
+        parse: ComrakParseOptions {
+            smart: false,
+            default_info_string: None,
+            relaxed_tasklist_matching: false,
+        },
+        render: ComrakRenderOptions {
+            hardbreaks: false,
+            github_pre_lang: false,
+            full_info_string: true,
+            width: 0,
+            unsafe_: false,
+            escape: false,
+            list_style: comrak::ListStyleType::Dash,
+            sourcepos: false,
+        },
+    }
+}
+
+/// Extracts the HTML data from the source data
+fn process_src_data(cfg: &Config, src_data: &SourceData) -> Result<HTMLIndexData> {
+    let comrak_opts = comrak_options();
+    let src_dir = cfg.src_dir();
+    let pages = process_src_files_iter(&src_data.files, &comrak_opts, &src_dir, "")?;
+
+    Ok(HTMLIndexData {
+        title: cfg.file().doc.title.to_string(),
+        authors: cfg.file().doc.authors.to_vec(),
+        summary: cfg.file().doc.summary.to_string(),
+        pages,
+    })
+}
+
+/// Processes source files recursively
+fn process_src_files_iter(
+    src_files: &[SourceFile],
+    comrak_opts: &ComrakOptions,
+    src_dir: &Path,
+    parent_index: &str,
+) -> Result<Vec<HTMLPageData>> {
+    let mut pages = vec![];
+    for (i, src_file) in src_files.iter().enumerate() {
+        let index = format!(
+            "{}{}{}",
+            parent_index,
+            if parent_index.is_empty() { "" } else { "." },
+            i + 1
+        );
+
+        if let Some(page) = process_src_file_iter(src_file, comrak_opts, src_dir, &index)? {
+            pages.push(page);
+        };
+    }
+    Ok(pages)
+}
+
+/// Processes a source file recursively
+fn process_src_file_iter(
+    src_file: &SourceFile,
+    comrak_opts: &ComrakOptions,
+    src_dir: &Path,
+    index: &str,
+) -> Result<Option<HTMLPageData>> {
+    let (html, metadata) = match src_file
+        .path
+        .extension()
+        .map(|ext| ext.to_str().unwrap_or(""))
+        .unwrap_or("")
+    {
+        "md" | "markdown" => {
+            let content_str = String::from_utf8(src_file.content.to_vec())?;
+            markdown_to_html(&content_str, comrak_opts)?
+        }
+        _ => {
+            warn!("Skipped file {}", src_file.path.display());
+            return Ok(None);
+        }
+    };
+
+    let id = {
+        let file_name = src_file
+            .path
+            .file_stem()
+            .ok_or(anyhow!("Invalid src file name"))?
+            .to_str()
+            .ok_or(anyhow!("Invalid src file name"))?;
+        slugify(file_name)
+    };
+
+    let title = metadata.title.unwrap_or(id.clone());
+    let index = index.to_string();
+
+    let path = src_file
+        .path
+        .strip_prefix(src_dir)
+        .context("Source file path is not within the source dir")?
+        .with_file_name(&id)
+        .with_extension("html");
+
+    let pages = process_src_files_iter(&src_file.children, comrak_opts, src_dir, &index)?;
+
+    Ok(Some(HTMLPageData {
+        id,
+        path,
+        title,
+        index,
+        html,
+        pages,
+    }))
+}
+
+/// Extracts the markdown content and converts to HTML
+fn markdown_to_html(md: &str, opts: &ComrakOptions) -> Result<(String, FileMetadata)> {
+    // extract
+    let arena = comrak::Arena::new();
+    let root = comrak::parse_document(&arena, md, opts);
+
+    // frontmatter > metadata
+    let metadata = match root.children().next() {
+        Some(node) => {
+            if let comrak::nodes::NodeValue::FrontMatter(ref fm) = node.data.borrow().value {
+                let fm = match fm.strip_prefix("---") {
+                    Some(fm) => fm.trim(),
+                    None => return Err(anyhow!("Invalid frontmatter, missing leading ---")),
+                };
+                let fm = match fm.strip_suffix("---") {
+                    Some(fm) => fm.trim(),
+                    None => return Err(anyhow!("Invalid frontmatter, missing trailing --- )")),
+                };
+                serde_yaml::from_str::<FileMetadata>(fm)?
+            } else {
+                FileMetadata::default()
+            }
+        }
+        None => FileMetadata::default(),
+    };
+
+    // > HTML
+    let mut bw = BufWriter::new(Vec::new());
+    comrak::format_html_with_plugins(root, opts, &mut bw, &comrak::ComrakPlugins::default())?;
+    let html = String::from_utf8(bw.into_inner()?)?;
+
+    Ok((html, metadata))
 }

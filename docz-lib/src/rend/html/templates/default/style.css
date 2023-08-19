@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
 body {
     font-family: 'Noto Serif', -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: var(--text-color, black);
-    max-width: 800px;
-    margin: 0 auto;
+    color: hsl(0, 0%, 15%);
 }
 
 p {
@@ -56,8 +56,19 @@ td {
     padding: 6px 12px;
 }
 
+#body {
+    margin: 0;
+    display: flex;
+    flex-direction: row;
+}
 
-#body-inner {
+#sidebar {
+    border-right: 1px solid hsl(0, 0%, 25%);
+    padding: 24px 12px;
+}
+
+#main {
+    flex: 1;
     margin: 0 5%;
 }
 
