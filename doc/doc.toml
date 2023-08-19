@@ -1,7 +1,7 @@
 [doc]
 title = "Doc title"
-description = "Doc description"
-authors = []
+summary = "Doc description"
+authors = ["Nick (Uni of life)"]
 
 [src]
 src_dir = "src"
@@ -16,6 +16,6 @@ extra_dirs = ["tpl"]
 [output.debug]
 
 [output.html]
-template = "default"
-# index = "tpl/index.hbs"
+# template = "default"
+index = "tpl/index.hbs"
 static_files = [["tpl/style.css", "style.css"]]

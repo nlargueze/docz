@@ -7,7 +7,11 @@ use std::{
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use docz_lib::{build::BuildOptions, serve::ServeOptions, Service};
+use docz_lib::{
+    serve::ServeOptions,
+    watch::{WatchEvent, WatchOptions},
+    Service,
+};
 
 /// CLI arguments
 #[derive(Parser)]
@@ -43,11 +47,11 @@ pub enum Command {
         #[arg(long, short, default_value_t = 3000)]
         port: u16,
         /// Do not watch
-        #[arg(long)]
-        no_watch: bool,
+        #[arg(short, long)]
+        watch: bool,
         /// Do not open the browser  
-        #[arg(long)]
-        no_open: bool,
+        #[arg(short, long)]
+        open: bool,
     },
 }
 
@@ -76,31 +80,34 @@ pub async fn run() -> Result<()> {
             eprintln!("✅ Cleaned the build folder");
         }
         Command::Build { watch } => {
-            let service = init_service(&root_dir)?;
-            eprintln!("Building with watch ...");
-            service
-                .build(BuildOptions {
-                    watch,
-                    on_rebuilt: Some(Box::new(|event| {
-                        eprintln!("... Rebuilt ({event:?})",);
-                    })),
-                })
-                .await?;
-            eprintln!("✅ Built the docs");
+            let mut service = init_service(&root_dir)?;
+            if !watch {
+                eprintln!("Building ..");
+                service.build()?;
+                eprintln!("✅ Built the docs");
+            } else {
+                eprintln!("Building with watch ...");
+                service
+                    .build_and_watch(docz_lib::watch::WatchOptions {
+                        on_rebuilt: Some(on_rebuilt),
+                    })
+                    .await?;
+            }
         }
-        Command::Serve {
-            port,
-            no_watch,
-            no_open,
-        } => {
+        Command::Serve { port, watch, open } => {
             let service = init_service(&root_dir)?;
-            service
-                .serve(ServeOptions {
-                    port,
-                    watch: !no_watch,
-                    open: !no_open,
-                })
-                .await?;
+            if !watch {
+                service.serve(ServeOptions { port, open }, None).await?;
+            } else {
+                service
+                    .serve(
+                        ServeOptions { port, open },
+                        Some(WatchOptions {
+                            on_rebuilt: Some(on_rebuilt),
+                        }),
+                    )
+                    .await?;
+            }
         }
     }
 
@@ -115,4 +122,17 @@ fn init_service(root_dir: &Path) -> Result<Service> {
         .html_renderer()
         .build()?;
     Ok(service)
+}
+
+/// Prints a message on rebuild
+fn on_rebuilt(event: WatchEvent) {
+    eprintln!(
+        "... Rebuilt ({})",
+        event
+            .paths
+            .into_iter()
+            .map(|p| p.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
 }

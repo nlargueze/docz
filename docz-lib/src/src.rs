@@ -10,11 +10,13 @@ use log::trace;
 
 use crate::Service;
 
-/// Source data
+/// A representation of the source directory
 #[derive(Debug, Clone, Default)]
 pub struct SourceData {
     /// Files
     pub files: Vec<SourceFile>,
+    /// Static assets
+    pub assets: Vec<PathBuf>,
 }
 
 impl SourceData {
@@ -70,9 +72,10 @@ impl Service {
     /// Loads the source directory
     pub(crate) fn load_src_dir(&self) -> Result<SourceData> {
         let src_dir = self.config.src_dir();
-        let assets_dir = self.config.assets_dir();
+        let assets_dir = self.config.src_assets_dir();
         let files = self.load_src_dir_iter(&src_dir, &[&assets_dir])?;
-        let src_tree = SourceData { files };
+        let assets = self.load_assets_dir_iter(&assets_dir)?;
+        let src_tree = SourceData { files, assets };
         Ok(src_tree)
     }
 
@@ -130,5 +133,24 @@ impl Service {
         }
 
         Ok(src_files)
+    }
+
+    /// Loads the static assets recursively
+    #[allow(clippy::only_used_in_recursion)]
+    fn load_assets_dir_iter(&self, dir: &Path) -> Result<Vec<PathBuf>> {
+        let mut assets = vec![];
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    let mut new_assets = self.load_assets_dir_iter(&path)?;
+                    assets.append(&mut new_assets);
+                } else {
+                    assets.push(path);
+                }
+            }
+        }
+        Ok(assets)
     }
 }

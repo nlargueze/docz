@@ -9,6 +9,9 @@ use tokio::sync::watch;
 
 use crate::Service;
 
+/// Watch event
+pub type WatchEvent = Event;
+
 /// Watcher
 #[derive(Debug)]
 pub(crate) struct Watcher {
@@ -88,4 +91,11 @@ impl Service {
         }
         dirs
     }
+}
+
+/// Watch options
+#[derive(Default)]
+pub struct WatchOptions {
+    /// On rebuilt
+    pub on_rebuilt: Option<fn(Event)>,
 }

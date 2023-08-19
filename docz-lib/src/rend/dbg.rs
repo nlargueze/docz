@@ -25,6 +25,7 @@ impl Renderer for DebugRenderer {
         let build_dir = cfg.build_dir();
         let file_path = build_dir.join("debug.txt");
         fs::write(file_path, data_str)?;
+
         Ok(())
     }
 }

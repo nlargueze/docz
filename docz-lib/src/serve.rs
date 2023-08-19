@@ -1,6 +1,6 @@
 //! Server
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use async_stream::stream;
 use futures_core::Stream;
 use log::{debug, trace, warn};
@@ -8,19 +8,16 @@ use salvo::{prelude::*, sse};
 use tokio::sync::broadcast;
 
 use crate::{
-    watch::{EventExt, Watcher},
+    watch::{EventExt, WatchOptions, Watcher},
     Service,
 };
 
 /// Serve options
-#[derive(Debug)]
 pub struct ServeOptions {
     /// Service port
     pub port: u16,
     /// Opens the browser when launching the server
     pub open: bool,
-    /// Watches the source files and restarts the server
-    pub watch: bool,
 }
 
 impl Default for ServeOptions {
@@ -28,7 +25,6 @@ impl Default for ServeOptions {
         Self {
             port: 3000,
             open: false,
-            watch: false,
         }
     }
 }
@@ -45,34 +41,40 @@ impl ServeOptions {
 struct RebuiltChannelSender(broadcast::Sender<()>);
 
 impl Service {
-    /// Servers the build
-    pub async fn serve(self, opts: ServeOptions) -> Result<()> {
-        // initial build
-        self.build_once()?;
-        debug!("Build - OK");
-
-        // Rebuilt channel
-        let (tx_rebuilt, _rx_rebuilt) = broadcast::channel(100);
-
-        // setup server
+    /// Serves the build
+    ///
+    /// If `watch_opts` is set, it will watch for changes and rebuild the docs
+    pub async fn serve(
+        mut self,
+        opts: ServeOptions,
+        watch_opts: Option<WatchOptions>,
+    ) -> Result<()> {
+        // init
         let addr = format!("127.0.0.1:{}", opts.port);
         let addr_full = format!("http://{}", addr);
-        let acceptor = TcpListener::new(addr.as_str()).bind().await;
         let serve_dir = self.config.build_dir().join("html");
-        let router = Router::new()
-            .hoop(affix::inject(RebuiltChannelSender(tx_rebuilt.clone())))
-            .push(Router::with_path("ss-events").get(get_sse_events))
-            .push(
-                Router::with_path("<**path>").get(
-                    StaticDir::new([&serve_dir])
-                        .defaults("index.html")
-                        .listing(true),
-                ),
-            );
-        let server = Server::new(acceptor);
+        let (tx_rebuilt, _rx_rebuilt) = broadcast::channel(100);
+
+        // build
+        self.build()?;
+        debug!("Build - OK");
 
         // server task
+        let tx_rebuilt_server = tx_rebuilt.clone();
         let server_task = tokio::spawn(async move {
+            let router = Router::new()
+                .hoop(affix::inject(RebuiltChannelSender(tx_rebuilt_server)))
+                .push(Router::with_path("ss-events").get(get_sse_events))
+                .push(
+                    Router::with_path("<**path>").get(
+                        StaticDir::new([&serve_dir])
+                            .defaults("index.html")
+                            .listing(true),
+                    ),
+                );
+            let acceptor = TcpListener::new(addr.as_str()).bind().await;
+            let server = Server::new(acceptor);
+
             eprintln!("Serving on http://{}", addr);
             server.serve(router).await;
             Ok(()) as Result<(), Error>
@@ -81,10 +83,10 @@ impl Service {
         // watch task
         let watched_dirs = self.watched_dirs();
         let mut watcher = Watcher::new(watched_dirs, Some(200))?;
-        let rx_watch = if opts.watch {
-            Some(watcher.start()?)
+        let (rx_watch, on_rebuilt) = if let Some(watch_opts) = watch_opts {
+            (Some(watcher.start()?), watch_opts.on_rebuilt)
         } else {
-            None
+            (None, None)
         };
 
         // rebuild task
@@ -95,16 +97,17 @@ impl Service {
                     let event = rx_watch.borrow().clone();
                     if event.triggers_rebuild() {
                         trace!("Rebuilding ...");
-                        self.build_once()?;
+                        self.reload()?;
+                        self.build()?;
+                        if let Some(on_rebuilt) = on_rebuilt {
+                            on_rebuilt(event);
+                        }
 
-                        match tx_rebuilt.send(()) {
-                            Ok(_n) => {
-                                debug!("Sent rebuilt channel signal");
-                            }
-                            Err(err) => {
-                                warn!("Failed to send rebuilt signal: {err} ");
-                                return Err(anyhow!(err));
-                            }
+                        if let Err(err) = tx_rebuilt.send(()) {
+                            warn!("Failed to send rebuilt signal: {err} ");
+                            return Err(anyhow!(err));
+                        } else {
+                            debug!("Sent rebuilt channel signal");
                         }
                     }
                 }
@@ -115,12 +118,10 @@ impl Service {
 
         // open
         if opts.open {
-            if let Err(err) = open::that(&addr_full) {
-                eprintln!("An error occurred when opening '{}': {}", addr_full, err)
-            }
+            open::that(&addr_full).context(format!("Failed to open '{}'", addr_full))?;
         }
 
-        Ok(tokio::try_join!(server_task, rebuild_task).map(|_| ())?)
+        Ok(tokio::try_join!(server_task, rebuild_task).map(|_res| ())?)
     }
 }
 
@@ -137,19 +138,16 @@ async fn get_sse_events(depot: &mut Depot, res: &mut Response) {
 /// Creates a stream for SSE events
 fn create_sse_stream(
     mut rx: broadcast::Receiver<()>,
-) -> impl Stream<Item = Result<SseEvent, broadcast::error::RecvError>> {
+) -> impl Stream<Item = ::std::result::Result<SseEvent, broadcast::error::RecvError>> {
     stream! {
         loop {
-            match  rx.recv().await {
-                Ok(_) => {
-                    debug!("Sending SSE rebuilt event");
-                    let event = SseEvent::default().text("rebuilt");
-                    yield Ok(event);
-                },
-                Err(err) => {
-                    warn!("Error receiving rebuilt signal: {err}");
-                    continue;
-                }
+            if let Err(err) = rx.recv().await {
+                warn!("Error receiving rebuilt signal: {err}");
+                continue;
+            } else {
+                debug!("Sending SSE rebuilt event");
+                let event = SseEvent::default().text("rebuilt");
+                yield Ok(event);
             }
         }
     }

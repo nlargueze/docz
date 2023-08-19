@@ -1,6 +1,6 @@
 //! Serves assets
 
-use docz_lib::{serve::ServeOptions, Service};
+use docz_lib::{serve::ServeOptions, watch::WatchOptions, Service};
 
 #[tokio::main]
 async fn main() {
@@ -21,11 +21,13 @@ async fn main() {
         .unwrap();
 
     service
-        .serve(ServeOptions {
-            port: 5000,
-            open: true,
-            watch: true,
-        })
+        .serve(
+            ServeOptions {
+                port: 5000,
+                open: true,
+            },
+            Some(WatchOptions::default()),
+        )
         .await
         .unwrap();
 }

@@ -68,8 +68,13 @@ impl Config {
     }
 
     /// Returns the assets directory
-    pub fn assets_dir(&self) -> PathBuf {
+    pub fn src_assets_dir(&self) -> PathBuf {
         self.src_dir().join(&self.file.src.assets_dir)
+    }
+
+    /// Returns the assets dir name
+    pub fn assets_dir_name(&self) -> PathBuf {
+        self.file.src.assets_dir.clone()
     }
 
     /// Returns the build directory
@@ -151,8 +156,8 @@ impl Default for ConfigFile {
 pub struct DocConfig {
     /// Doc title
     pub title: String,
-    /// Doc description
-    pub description: String,
+    /// Doc summary
+    pub summary: String,
     /// Authors
     pub authors: Vec<String>,
 }
@@ -161,7 +166,7 @@ impl Default for DocConfig {
     fn default() -> Self {
         Self {
             title: "Doc title".to_string(),
-            description: "Doc description".to_string(),
+            summary: "Doc description".to_string(),
             authors: vec![],
         }
     }

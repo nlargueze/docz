@@ -4,62 +4,18 @@ use std::fs;
 
 use anyhow::{anyhow, Result};
 use log::{debug, trace};
-use notify::Event;
 
 use crate::{
-    watch::{EventExt, Watcher},
+    watch::{EventExt, WatchOptions, Watcher},
     Service,
 };
 
-/// Build options
-#[derive(Default)]
-pub struct BuildOptions {
-    /// Watch mode
-    pub watch: bool,
-    /// On rebuilt
-    pub on_rebuilt: Option<Box<dyn Fn(Event) + Send + Sync>>,
-}
-
 impl Service {
-    /// Removes the build folder
-    pub fn remove_build_dir(&self) -> Result<()> {
-        let build_dir = self.config.build_dir();
-        if build_dir.exists() {
-            fs::remove_dir_all(build_dir)?
-        }
-        Ok(())
-    }
-
-    /// Builds the documentation
-    pub async fn build(&self, opts: BuildOptions) -> Result<()> {
-        self.build_once()?;
-
-        if opts.watch {
-            let watched_dirs = self.watched_dirs();
-            let mut watcher = Watcher::new(watched_dirs, Some(200))?;
-            let mut rx_watch = watcher.start()?;
-            loop {
-                rx_watch.changed().await?;
-                let event = rx_watch.borrow().clone();
-                if event.triggers_rebuild() {
-                    debug!("Rebuilding ...");
-                    self.build_once()?;
-                    debug!("Rebuilt OK");
-                    if let Some(on_rebuilt) = opts.on_rebuilt.as_ref() {
-                        on_rebuilt(event.clone());
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Builds the documentation
-    pub(crate) fn build_once(&self) -> Result<()> {
+    /// Builds the document
+    pub fn build(&self) -> Result<()> {
         let src_tree = self.load_src_dir()?;
 
-        // recreate the build dir
+        // (re)create the build dir
         let build_dir = self.config.build_dir();
         self.remove_build_dir()?;
         fs::create_dir(&build_dir)?;
@@ -77,5 +33,36 @@ impl Service {
         }
 
         Ok(())
+    }
+
+    /// Removes the build folder
+    pub fn remove_build_dir(&self) -> Result<()> {
+        let build_dir = self.config.build_dir();
+        if build_dir.exists() {
+            fs::remove_dir_all(build_dir)?
+        }
+        Ok(())
+    }
+
+    /// Builds the document and watch for changes
+    pub async fn build_and_watch(&mut self, opts: WatchOptions) -> Result<()> {
+        self.build()?;
+
+        let watched_dirs = self.watched_dirs();
+        let mut watcher = Watcher::new(watched_dirs, Some(200))?;
+        let mut rx_watch = watcher.start()?;
+        loop {
+            rx_watch.changed().await?;
+            let event = rx_watch.borrow().clone();
+            if event.triggers_rebuild() {
+                debug!("Rebuilding ...");
+                self.reload()?;
+                self.build()?;
+                debug!("Rebuilt OK");
+                if let Some(on_rebuilt) = opts.on_rebuilt.as_ref() {
+                    on_rebuilt(event.clone());
+                }
+            }
+        }
     }
 }

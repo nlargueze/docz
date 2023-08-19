@@ -72,12 +72,22 @@ impl Service {
         fs::write(dummy_file, "# Chapter 1\n")?;
 
         // assets dir
-        let assets_dir = config.assets_dir();
+        let assets_dir = config.src_assets_dir();
         if assets_dir.exists() {
             return Err(anyhow::anyhow!("assets directory already exists"));
         }
         fs::create_dir(assets_dir)?;
 
+        Ok(())
+    }
+
+    /// Reloads the service
+    pub(crate) fn reload(&mut self) -> Result<()> {
+        self.config.load_file()?;
+        for (id, renderer) in self.renderers.iter_mut() {
+            trace!("Registering renderer ({id})");
+            renderer.register(&self.config)?;
+        }
         Ok(())
     }
 }
@@ -120,7 +130,7 @@ impl ServiceBuilder {
 
     /// Adds the HTML renderer
     pub fn html_renderer(self) -> Self {
-        let html_renderer = HTMLRenderer::new();
+        let html_renderer = HTMLRenderer::default();
         self.renderer("html", html_renderer)
     }
 

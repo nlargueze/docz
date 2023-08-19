@@ -3,11 +3,42 @@
 
 <head>
     <title>{{title}}</title>
+    {{!--
+    <link rel="icon" href="/favicon.png" type="image/png"> --}}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/style.css">
     <script type="text/javascript" src="/sse.js"></script>
 </head>
 
 <body>
-    <div>Hello</div>
+    <div id="body-wrapper">
+        <div id="body-inner">
+            <h1 id="title">
+                <span>
+                    {{title}}
+                </span>
+            </h1>
+            <div id="authors">
+                <p>
+                    {{#each authors}}
+                    <span>{{this}}</span>
+                    {{/each}}
+                </p>
+            </div>
+            <div id="summary">
+                <h3>Abstract</h3>
+                <div class="summary-text">
+                    {{summary}}
+                </div>
+            </div>
+            {{#each pages}}
+            <div class="page">
+                {{> pagePartial}}
+            </div>
+            {{/each}}
+        </div>
+    </div>
+
 </body>
 
 </html>

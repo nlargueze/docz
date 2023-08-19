@@ -2,7 +2,7 @@
 
 use std::sync::Once;
 
-use docz_lib::{build::BuildOptions, Service};
+use docz_lib::Service;
 
 static INIT_ONCE: Once = Once::new();
 
@@ -24,11 +24,5 @@ fn init_service() -> Service {
 #[tokio::test]
 async fn test_build() {
     let service = init_service();
-    service
-        .build(BuildOptions {
-            watch: false,
-            on_rebuilt: None,
-        })
-        .await
-        .unwrap();
+    service.build().unwrap();
 }
