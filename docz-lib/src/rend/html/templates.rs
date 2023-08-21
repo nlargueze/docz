@@ -34,6 +34,8 @@ static SHARED_STATIC_FILES: &[(&str, &[u8])] = &[
         "prism-theme.css",
         include_bytes!("templates/_shared/prism-theme.css"),
     ),
+    ("theme.js", include_bytes!("templates/_shared/theme.js")),
+    ("sidebar.js", include_bytes!("templates/_shared/sidebar.js")),
 ];
 
 impl Default for HTMLTemplate {
