@@ -11,25 +11,19 @@ assets_dir = "_assets"
 build_dir = "build"
 
 [watch]
-extra_dirs = ["./tpl"]
+extra_dirs = [
+    # "./tpl"
+]
 
 [output.debug]
 
 [output.html]
-# template = "default"
+template = "article"
 # index = "tpl/index.hbs"
-page = "tpl/page.hbs"
+# page = "tpl/page.hbs"
 static_files = [
     # [
     #     "tpl/style.css",
     #     "style.css",
-    # ],
-    # [
-    #     "tpl/sidebar.js",
-    #     "sidebar.js",
-    # ],
-    # [
-    #     "tpl/theme.js",
-    #     "theme.js",
     # ],
 ]

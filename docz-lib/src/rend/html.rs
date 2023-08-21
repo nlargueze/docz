@@ -63,8 +63,8 @@ pub struct OutputHtmlConfig {
 }
 
 /// HTML index.html data
-#[derive(Debug, Default, Serialize)]
-struct HTMLIndexData {
+#[derive(Debug, Serialize)]
+struct HTMLDocData {
     /// Title
     title: String,
     /// Authors
@@ -76,7 +76,7 @@ struct HTMLIndexData {
 }
 
 /// HTML page data
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct HTMLPageData {
     /// Page ID (slugified)
     id: String,
@@ -88,8 +88,27 @@ struct HTMLPageData {
     index: String,
     /// HTML content
     html: String,
-    /// Sub-pages
+    /// Subpages pages
     pages: Vec<HTMLPageData>,
+}
+
+/// HTML page data
+#[derive(Debug, Serialize)]
+struct HTMLPageTemplateData<'a> {
+    /// Page ID (slugified)
+    id: String,
+    /// URL path
+    path: PathBuf,
+    /// Title
+    title: String,
+    /// Index (eg 1.2.4) - used for the table of contents
+    index: String,
+    /// HTML content
+    html: String,
+    /// Subpages pages
+    pages: Vec<HTMLPageData>,
+    /// DOcument
+    doc: &'a HTMLDocData,
 }
 
 /// File metadata
@@ -193,21 +212,21 @@ impl Renderer for HTMLRenderer {
 
     fn render(&self, cfg: &Config, src_data: &SourceData) -> Result<()> {
         // process the source files to template data
-        let data = process_src_data(cfg, src_data)?;
-        debug!("HTML template data \n{data:#?}");
+        let doc = process_src_data(cfg, src_data)?;
+        debug!("HTML template data \n{doc:#?}");
 
         // create HTML dir inside build (NB: /build has been cleared before)
         let build_dir = cfg.build_dir().join("html");
         fs::create_dir_all(&build_dir)?;
 
         // render index.html
-        let index_file_str = self.registry.render(INDEX_TEMPLATE_ID, &data)?;
+        let index_file_str = self.registry.render(INDEX_TEMPLATE_ID, &doc)?;
         let index_file = build_dir.join("index.html");
         fs::write(index_file, index_file_str)?;
 
         // render {page}.html
-        for page in &data.pages {
-            self.render_page_iter(page, &build_dir)?;
+        for page in &doc.pages {
+            self.render_page_iter(page, &build_dir, &doc)?;
         }
 
         // write embedded static files
@@ -231,7 +250,21 @@ impl Renderer for HTMLRenderer {
 
 impl HTMLRenderer {
     /// Renders the individual pages
-    fn render_page_iter(&self, page: &HTMLPageData, build_dir: &Path) -> Result<()> {
+    fn render_page_iter(
+        &self,
+        page: &HTMLPageData,
+        build_dir: &Path,
+        doc: &HTMLDocData,
+    ) -> Result<()> {
+        let page = HTMLPageTemplateData {
+            id: page.id.clone(),
+            path: page.path.clone(),
+            title: page.title.clone(),
+            index: page.index.clone(),
+            html: page.html.clone(),
+            pages: page.pages.clone(),
+            doc,
+        };
         let page_file_str = self.registry.render(PAGE_TEMPLATE_ID, &page)?;
         let page_file = build_dir.join(&page.path);
         let parent_dir = page_file.parent().unwrap();
@@ -239,7 +272,7 @@ impl HTMLRenderer {
         fs::write(page_file, page_file_str)?;
 
         for page in &page.pages {
-            self.render_page_iter(page, build_dir)?;
+            self.render_page_iter(page, build_dir, doc)?;
         }
         Ok(())
     }
@@ -279,12 +312,12 @@ fn comrak_options() -> ComrakOptions {
 }
 
 /// Extracts the HTML data from the source data
-fn process_src_data(cfg: &Config, src_data: &SourceData) -> Result<HTMLIndexData> {
+fn process_src_data(cfg: &Config, src_data: &SourceData) -> Result<HTMLDocData> {
     let comrak_opts = comrak_options();
     let src_dir = cfg.src_dir();
     let pages = process_src_files_iter(&src_data.files, &comrak_opts, &src_dir, "")?;
 
-    Ok(HTMLIndexData {
+    Ok(HTMLDocData {
         title: cfg.file().doc.title.to_string(),
         authors: cfg.file().doc.authors.to_vec(),
         summary: cfg.file().doc.summary.to_string(),
