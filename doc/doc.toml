@@ -15,15 +15,18 @@ extra_dirs = [
     # "./tpl"
 ]
 
-[output.debug]
+# [output.debug]
 
-[output.html]
-template = "article"
-# index = "tpl/index.hbs"
-# page = "tpl/page.hbs"
-static_files = [
-    # [
-    #     "tpl/style.css",
-    #     "style.css",
-    # ],
-]
+# [output.html]
+# template = "article"
+# # index = "tpl/index.hbs"
+# # page = "tpl/page.hbs"
+# # static_files = [
+# #     [
+# #         "tpl/style.css",
+# #         "style.css",
+# #     ],
+# # ]
+
+[output.epub]
+# cover_image = "cover.jpg"

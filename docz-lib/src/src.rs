@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::Result;
 use log::trace;
+use serde::Deserialize;
 
 use crate::Service;
 
@@ -153,4 +154,10 @@ impl Service {
         }
         Ok(assets)
     }
+}
+
+/// File metadata
+#[derive(Debug, Deserialize, Default)]
+pub struct FileMetadata {
+    pub title: Option<String>,
 }

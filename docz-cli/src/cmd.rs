@@ -120,6 +120,7 @@ fn init_service(root_dir: &Path) -> Result<Service> {
         .root_dir(root_dir)
         .dbg_renderer()
         .html_renderer()
+        .epub_renderer()
         .build()?;
     Ok(service)
 }

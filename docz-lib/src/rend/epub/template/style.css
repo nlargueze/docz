@@ -1,0 +1,25 @@
+@font-face {
+    font-family: Noto;
+    src: url('fonts/NotoSerif.ttf');
+}
+
+body {
+    font-family: Noto, serif;
+}
+
+#cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#cover #title {
+    font-size: 2em;
+    font-weight: bold;
+}
+
+#chapter {
+    font-size: 12px;
+    line-height: 1.65em;
+}

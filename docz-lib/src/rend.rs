@@ -1,9 +1,13 @@
 //! Rendering
 
 mod dbg;
+#[cfg(feature = "epub")]
+mod epub;
 mod html;
 
 pub use dbg::*;
+#[cfg(feature = "epub")]
+pub use epub::*;
 pub use html::*;
 
 use anyhow::Result;

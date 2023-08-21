@@ -134,6 +134,13 @@ impl ServiceBuilder {
         self.renderer("html", html_renderer)
     }
 
+    /// Adds the EPUB renderer
+    #[cfg(feature = "epub")]
+    pub fn epub_renderer(self) -> Self {
+        let epub_renderer = rend::EPUBRenderer::default();
+        self.renderer("epub", epub_renderer)
+    }
+
     /// Builds the service
     pub fn build(mut self) -> Result<Service> {
         let mut service = Service::default();

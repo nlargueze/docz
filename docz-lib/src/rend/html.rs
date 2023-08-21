@@ -19,7 +19,7 @@ use slug::slugify;
 
 use crate::{
     cfg::Config,
-    src::{SourceData, SourceFile},
+    src::{FileMetadata, SourceData, SourceFile},
 };
 
 use self::templates::HTMLTemplate;
@@ -51,7 +51,7 @@ const PAGE_TEMPLATE_ID: &str = "_PAGE_";
 
 /// HTML output config (from doc.toml)
 #[derive(Debug, Deserialize, Default)]
-pub struct OutputHtmlConfig {
+pub struct HTMLOutputConfig {
     /// Builtin template ID
     pub template: Option<String>,
     /// Overwrites the `index.hbs` template
@@ -111,12 +111,6 @@ struct HTMLPageTemplateData<'a> {
     doc: &'a HTMLDocData,
 }
 
-/// File metadata
-#[derive(Debug, Deserialize, Default)]
-struct FileMetadata {
-    title: Option<String>,
-}
-
 impl Renderer for HTMLRenderer {
     fn register(&mut self, cfg: &Config) -> Result<()> {
         // (re)init registry
@@ -124,7 +118,7 @@ impl Renderer for HTMLRenderer {
 
         // get config
         let html_config = cfg
-            .get_output_cfg::<OutputHtmlConfig>("html")?
+            .get_output_cfg::<HTMLOutputConfig>("html")?
             .unwrap_or_default();
 
         // overwrite the default built-in template
@@ -279,7 +273,7 @@ impl HTMLRenderer {
 }
 
 /// Returns the comrak options
-fn comrak_options() -> ComrakOptions {
+pub fn comrak_options() -> ComrakOptions {
     ComrakOptions {
         extension: ComrakExtensionOptions {
             strikethrough: true,
@@ -404,7 +398,7 @@ fn process_src_file_iter(
 }
 
 /// Extracts the markdown content and converts to HTML
-fn markdown_to_html(md: &str, opts: &ComrakOptions) -> Result<(String, FileMetadata)> {
+pub fn markdown_to_html(md: &str, opts: &ComrakOptions) -> Result<(String, FileMetadata)> {
     // extract
     let arena = comrak::Arena::new();
     let root = comrak::parse_document(&arena, md, opts);

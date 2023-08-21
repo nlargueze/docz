@@ -14,7 +14,7 @@ Emoji: 🇫🇷 😎
 
 ## Link 
 
-[Google](https://wwww.google.com)
+[Google](https://www.google.com)
 
 ## Image 
 
@@ -64,9 +64,9 @@ fn add(x: u8, y: u8) -> u8 {
 
 ## Footnote 
 
-Here's a sentence with a footnote. [^1]
+<!-- Here's a sentence with a footnote. [^1]
 
-[^1]: This is the footnote.
+[^1]: This is the footnote. -->
 
 ## Definition list 
 
